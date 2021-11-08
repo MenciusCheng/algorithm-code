@@ -13,15 +13,15 @@ https://leetcode-cn.com/problems/range-addition-ii/
 在执行给定的一系列操作后，你需要返回矩阵中含有最大整数的元素个数。
 */
 func main() {
-	fmt.Println(maxCount2(3, 3, [][]int{
+	fmt.Println(maxCount(3, 3, [][]int{
 		{2, 2},
 		{3, 3},
 	}))
 
-	fmt.Println(maxCount2(40000, 40000, [][]int{}))
+	fmt.Println(maxCount(40000, 40000, [][]int{}))
 }
 
-func maxCount2(m int, n int, ops [][]int) int {
+func maxCount(m int, n int, ops [][]int) int {
 	a, b := m, n
 	for _, op := range ops {
 		if op[0] < a {
@@ -32,33 +32,4 @@ func maxCount2(m int, n int, ops [][]int) int {
 		}
 	}
 	return a * b
-}
-
-func maxCount(m int, n int, ops [][]int) int {
-	arr := make([][]int, 0, m)
-	for i := 0; i < m; i++ {
-		nList := make([]int, n)
-		arr = append(arr, nList)
-	}
-
-	for _, op := range ops {
-		for i := 0; i < op[0]; i++ {
-			for j := 0; j < op[1]; j++ {
-				arr[i][j] += 1
-			}
-		}
-	}
-
-	var max, maxCount int
-	for i := 0; i < len(arr); i++ {
-		for j := 0; j < len(arr[i]); j++ {
-			if arr[i][j] > max {
-				max = arr[i][j]
-				maxCount = 1
-			} else if arr[i][j] == max {
-				maxCount += 1
-			}
-		}
-	}
-	return maxCount
 }
