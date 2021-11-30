@@ -42,7 +42,7 @@ func binarySearch(arr []int, target int) bool {
 }
 
 func searchMatrixZ(matrix [][]int, target int) bool {
-	x, y := 0, len(matrix[0]) - 1
+	x, y := 0, len(matrix[0])-1
 
 	for x < len(matrix) && y > 0 {
 		if matrix[x][y] == target {
