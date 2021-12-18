@@ -59,30 +59,10 @@ func countBattleships(board [][]byte) int {
 	var count int
 	for i := 0; i < len(board); i++ {
 		for j := 0; j < len(board[i]); j++ {
-			if board[i][j] == 'X' {
-				board[i][j] = 'V'
+			if board[i][j] == 'X' && (i == 0 || board[i-1][j] == '.') && (j == 0 || board[i][j-1] == '.') {
 				count++
-				isRow := false
-				for jr := j + 1; jr < len(board[i]); jr++ {
-					if board[i][jr] == 'X' {
-						isRow = true
-						board[i][jr] = 'V'
-					} else {
-						break
-					}
-				}
-				if !isRow {
-					for ic := i + 1; ic < len(board); ic++ {
-						if board[ic][j] == 'X' {
-							board[ic][j] = 'V'
-						} else {
-							break
-						}
-					}
-				}
 			}
 		}
 	}
-
 	return count
 }
