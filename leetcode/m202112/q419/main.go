@@ -1,0 +1,88 @@
+package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+/*
+https://leetcode-cn.com/problems/battleships-in-a-board/
+
+419. 甲板上的战舰
+给你一个大小为 m x n 的矩阵 board 表示甲板，其中，每个单元格可以是一艘战舰 'X' 或者是一个空位 '.' ，返回在甲板 board 上放置的 战舰 的数量。
+战舰 只能水平或者垂直放置在 board 上。换句话说，战舰只能按 1 x k（1 行，k 列）或 k x 1（k 行，1 列）的形状建造，其中 k 可以是任意大小。两艘战舰之间至少有一个水平或垂直的空位分隔 （即没有相邻的战舰）。
+
+示例 1：
+输入：board = [["X",".",".","X"],[".",".",".","X"],[".",".",".","X"]]
+输出：2
+
+示例 2：
+输入：board = [["."]]
+输出：0
+
+提示：
+
+m == board.length
+n == board[i].length
+1 <= m, n <= 200
+board[i][j] 是 '.' 或 'X'
+*/
+func main() {
+	var tests = []struct {
+		board [][]byte
+		want  int
+	}{
+		{
+			board: [][]byte{
+				{'X', '.', '.', 'X'}, {'.', '.', '.', 'X'}, {'.', '.', '.', 'X'},
+			},
+			want: 2,
+		},
+		{
+			board: [][]byte{
+				{'.'},
+			},
+			want: 0,
+		},
+	}
+
+	for _, item := range tests {
+		if ans := countBattleships(item.board); reflect.DeepEqual(ans, item.want) {
+			fmt.Println(true)
+		} else {
+			fmt.Printf("ans: %+v, want: %+v\n", ans, item.want)
+		}
+	}
+}
+
+func countBattleships(board [][]byte) int {
+	var count int
+	for i := 0; i < len(board); i++ {
+		for j := 0; j < len(board[i]); j++ {
+			if board[i][j] == 'X' {
+				board[i][j] = 'V'
+				count++
+				isRow := false
+				for jr := j + 1; jr < len(board[i]); jr++ {
+					if board[i][jr] == 'X' {
+						isRow = true
+						board[i][jr] = 'V'
+					} else {
+						break
+					}
+				}
+				if !isRow {
+					for ic := i + 1; ic < len(board); ic++ {
+						if board[ic][j] == 'X' {
+							board[ic][j] = 'V'
+						} else {
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return count
+}
