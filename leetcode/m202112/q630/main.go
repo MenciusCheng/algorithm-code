@@ -94,6 +94,7 @@ func scheduleCourse(courses [][]int) int {
 	return h.Len()
 }
 
+// Heap 优先队列
 type Heap struct {
 	sort.IntSlice
 }
