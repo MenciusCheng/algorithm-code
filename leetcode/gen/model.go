@@ -51,7 +51,7 @@ func (s *Subject) parseAns() error {
 		return fmt.Errorf("ans is empty")
 	}
 
-	reg := regexp.MustCompile(`func\s+(\w+)\(([A-Za-z0-9\[\], ]+)\)\s+([A-Za-z0-9\[\]]+)`)
+	reg := regexp.MustCompile(`func\s+(\w+)\(([A-Za-z0-9\[\], *]+)\)\s+([A-Za-z0-9\[\]*]+)`)
 	submatch := reg.FindStringSubmatch(ansArr[0])
 	if len(submatch) != 4 {
 		return fmt.Errorf("submatch length is not equal to 4: %+v", submatch)
@@ -60,7 +60,7 @@ func (s *Subject) parseAns() error {
 	var paramStr string
 	s.AnsFuncName, paramStr, s.AnsReturnType = submatch[1], submatch[2], submatch[3]
 
-	paramReg := regexp.MustCompile(`(\w+)\s+([A-Za-z0-9\[\]]+)`)
+	paramReg := regexp.MustCompile(`(\w+)\s+([A-Za-z0-9\[\]*]+)`)
 	for _, item := range strings.Split(paramStr, ",") {
 		paramMatchs := paramReg.FindStringSubmatch(item)
 		if len(paramMatchs) != 3 {
