@@ -86,6 +86,8 @@ func (s *Subject) parseAns() error {
 			body = "return [][]int{}"
 		case "[]string":
 			body = "return []string{}"
+		case "bool":
+			body = "return false"
 		}
 		if body != "" {
 			ansArr[1] = body
