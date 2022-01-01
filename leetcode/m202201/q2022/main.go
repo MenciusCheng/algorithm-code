@@ -1,9 +1,13 @@
-package leetcode
+package main
 
-import "testing"
+import (
+	"fmt"
+	"reflect"
+)
 
-func TestGen(t *testing.T) {
-	desc := `
+/*
+https://leetcode-cn.com/problems/convert-1d-array-into-2d-array/
+
 2022. 将一维数组转变成二维数组
 给你一个下标从 0 开始的一维整数数组 original 和两个整数 m 和  n 。你需要使用 original 中 所有 元素创建一个 m 行 n 列的二维数组。
 original 中下标从 0 到 n - 1 （都 包含 ）的元素构成二维数组的第一行，下标从 n 到 2 * n - 1 （都 包含 ）的元素构成二维数组的第二行，依此类推。
@@ -44,21 +48,57 @@ original 中只有 1 个元素。
 1 <= original.length <= 5 * 10^4
 1 <= original[i] <= 10^5
 1 <= m, n <= 4 * 10^4
-`
-
-	url := `
-https://leetcode-cn.com/problems/convert-1d-array-into-2d-array/
-`
-
-	cal := `
-func construct2DArray(original []int, m int, n int) [][]int {
-
-}
-`
-
-	month := "m202201"
-
-	if err := Gen(desc, url, cal, month); err != nil {
-		t.Errorf("Gen error: %+v", err)
+*/
+func main() {
+	var tests = []struct {
+		original []int
+		m        int
+		n        int
+		want     [][]int
+	}{
+		{
+			original: []int{1, 2, 3, 4},
+			m:        2,
+			n:        2,
+			want:     [][]int{{1, 2}, {3, 4}},
+		},
+		{
+			original: []int{1, 2, 3},
+			m:        1,
+			n:        3,
+			want:     [][]int{{1, 2, 3}},
+		},
+		{
+			original: []int{1, 2},
+			m:        1,
+			n:        1,
+			want:     [][]int{},
+		},
+		{
+			original: []int{3},
+			m:        1,
+			n:        2,
+			want:     [][]int{},
+		},
 	}
+
+	for _, item := range tests {
+		if ans := construct2DArray(item.original, item.m, item.n); reflect.DeepEqual(ans, item.want) {
+			fmt.Println(true)
+		} else {
+			fmt.Printf("ans: %+v, want: %+v\n", ans, item.want)
+		}
+	}
+}
+
+func construct2DArray(original []int, m int, n int) [][]int {
+	res := make([][]int, 0)
+	if m*n != len(original) {
+		return res
+	}
+
+	for i := 0; i < m; i++ {
+		res = append(res, original[i*n:(i+1)*n])
+	}
+	return res
 }
