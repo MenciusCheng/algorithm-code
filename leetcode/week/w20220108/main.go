@@ -94,6 +94,7 @@ func longestPalindrome(words []string) int {
 5931. 用邮票贴满网格图
 */
 func possibleToStamp(grid [][]int, stampHeight int, stampWidth int) bool {
+	// 此代码不正确
 	for i := range grid {
 		for j := 0; j < len(grid[i]); j++ {
 			if grid[i][j] == 0 {
