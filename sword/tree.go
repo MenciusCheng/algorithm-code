@@ -7,6 +7,7 @@ type TreeNode struct {
 }
 
 // 中序遍历
+// 先遍历二叉树的左子树，然后遍历二叉树的根节点，最后遍历二叉树的右子树。
 func inorderTraversal(root *TreeNode) []int {
 	res := make([]int, 0)
 	if root != nil {
@@ -34,5 +35,29 @@ func inorderTraversalFor(root *TreeNode) []int {
 		cur = cur.Right
 	}
 
+	return res
+}
+
+// 前序遍历
+// 先遍历二叉树的根节点，再遍历二叉树的左子树，最后遍历二叉树的右子树。
+func preorderTraversal(root *TreeNode) []int {
+	res := make([]int, 0)
+	if root != nil {
+		res = append(res, root.Val)
+		res = append(res, preorderTraversal(root.Left)...)
+		res = append(res, preorderTraversal(root.Right)...)
+	}
+	return res
+}
+
+// 后序遍历
+// 先遍历左子树，再遍历右子树，最后遍历根节点。
+func postorderTraversal(root *TreeNode) []int {
+	res := make([]int, 0)
+	if root != nil {
+		res = append(res, postorderTraversal(root.Left)...)
+		res = append(res, postorderTraversal(root.Right)...)
+		res = append(res, root.Val)
+	}
 	return res
 }
