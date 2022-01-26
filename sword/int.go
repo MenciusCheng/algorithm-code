@@ -2,22 +2,29 @@ package sword
 
 import (
 	"fmt"
-	"math"
 )
 
-// 二进制
+// 二进制位运算示例
 func binary() {
-	a := 2
-	b := a << 1
-	fmt.Println(b)
-	c := b & 1
-	fmt.Println(c)
-	c = b | 1
-	fmt.Println(c)
-	c = b ^ 1
-	fmt.Println(c)
+	a := 60 // 60 = 00111100
+	fmt.Printf("a = %d, %08b\n", a, a)
+	b := 13 // 13 = 00001101
+	fmt.Printf("b = %d, %08b\n", b, b)
 
-	fmt.Println(math.MaxInt32)
+	c := a & b // 12 = 00001100
+	fmt.Printf("a & b = %d, %08b\n", c, c)
+
+	c = a | b // 61 = 00111101
+	fmt.Printf("a | b = %d, %08b\n", c, c)
+
+	c = a ^ b // 49 = 00110001
+	fmt.Printf("a ^ b = %d, %08b\n", c, c)
+
+	c = a << 2 // 240 = 11110000
+	fmt.Printf("a << 2 = %d, %08b\n", c, c)
+
+	c = a >> 2 // 15 = 00001111
+	fmt.Printf("a >> 2 = %d, %08b\n", c, c)
 }
 
 /*
