@@ -51,7 +51,7 @@ func (s *Subject) parseAns() error {
 		return fmt.Errorf("ans is empty")
 	}
 
-	reg := regexp.MustCompile(`func\s+(\w+)\s+\(([A-Za-z0-9\[\], *]+)\)\s+([A-Za-z0-9\[\]*]+)`)
+	reg := regexp.MustCompile(`func\s+(\w+)\s*\(([A-Za-z0-9\[\], *]+)\)\s+([A-Za-z0-9\[\]*]+)`)
 	submatch := reg.FindStringSubmatch(ansArr[0])
 	if len(submatch) != 4 {
 		return fmt.Errorf("submatch length is not equal to 4: %+v", submatch)
