@@ -85,6 +85,36 @@ func convert(s string, numRows int) string {
 	if numRows == 1 {
 		return s
 	}
+
+	rows := make([][]byte, numRows)
+	rowI := 0
+	isUp := false
+	for i := 0; i < len(s); i++ {
+		rows[rowI] = append(rows[rowI], s[i])
+		if isUp {
+			rowI--
+			if rowI == 0 {
+				isUp = false
+			}
+		} else {
+			rowI++
+			if rowI == numRows-1 {
+				isUp = true
+			}
+		}
+	}
+
+	res := make([]byte, 0, len(s))
+	for i := 0; i < len(rows); i++ {
+		res = append(res, rows[i]...)
+	}
+	return string(res)
+}
+
+func convert2(s string, numRows int) string {
+	if numRows == 1 {
+		return s
+	}
 	buffers := make([]bytes.Buffer, numRows)
 	rowIndex := 0
 	isDown := true
