@@ -80,3 +80,95 @@ func Test_inorderTraversalFor(t *testing.T) {
 		})
 	}
 }
+
+func Test_preorderTraversal(t *testing.T) {
+	type args struct {
+		root *TreeNode
+	}
+	tests := []struct {
+		name string
+		args args
+		want []int
+	}{
+		{
+			args: args{root: treeRoot1},
+			want: []int{1, 2, 4, 5, 3, 6, 7},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := preorderTraversal(tt.args.root); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("preorderTraversal() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_preorderTraversalFor(t *testing.T) {
+	type args struct {
+		root *TreeNode
+	}
+	tests := []struct {
+		name string
+		args args
+		want []int
+	}{
+		{
+			args: args{root: treeRoot1},
+			want: []int{1, 2, 4, 5, 3, 6, 7},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := preorderTraversalFor(tt.args.root); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("preorderTraversalFor() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_postorderTraversal(t *testing.T) {
+	type args struct {
+		root *TreeNode
+	}
+	tests := []struct {
+		name string
+		args args
+		want []int
+	}{
+		{
+			args: args{root: treeRoot1},
+			want: []int{4, 5, 2, 6, 7, 3, 1},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := postorderTraversal(tt.args.root); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("postorderTraversal() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_postorderTraversalFor(t *testing.T) {
+	type args struct {
+		root *TreeNode
+	}
+	tests := []struct {
+		name string
+		args args
+		want []int
+	}{
+		{
+			args: args{root: treeRoot1},
+			want: []int{4, 5, 2, 6, 7, 3, 1},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := postorderTraversalFor(tt.args.root); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("postorderTraversalFor() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
