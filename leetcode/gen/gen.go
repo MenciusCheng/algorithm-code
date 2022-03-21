@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"text/template"
 )
 
@@ -51,4 +52,10 @@ func Gen(desc, url, cal, month string) error {
 // BuildDir 创建目录
 func BuildDir(absDir string) error {
 	return os.MkdirAll(path.Dir(absDir), os.ModePerm) //生成多级目录
+}
+
+func ArrStr(str string) string {
+	s2 := strings.ReplaceAll(str, "[", "{")
+	s2 = strings.ReplaceAll(s2, "]", "}")
+	return s2
 }

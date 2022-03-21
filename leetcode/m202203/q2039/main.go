@@ -75,7 +75,16 @@ func main() {
 		patience []int
 		want     int
 	}{
-		{},
+		{
+			edges:    [][]int{{0, 1}, {1, 2}},
+			patience: []int{0, 2, 1},
+			want:     8,
+		},
+		{
+			edges:    [][]int{{0, 1}, {0, 2}, {1, 2}},
+			patience: []int{0, 10, 10},
+			want:     3,
+		},
 	}
 
 	for _, item := range tests {
@@ -88,5 +97,41 @@ func main() {
 }
 
 func networkBecomesIdle(edges [][]int, patience []int) int {
-	return 0
+	g := make([][]int, len(patience))
+	for _, edge := range edges {
+		g[edge[0]] = append(g[edge[0]], edge[1])
+		g[edge[1]] = append(g[edge[1]], edge[0])
+	}
+
+	vt := make(map[int]int)
+	points := []int{0}
+	idleTime := 0
+	for len(points) > 0 {
+		idleTime++
+		nextPoints := make([]int, 0)
+		for _, point := range points {
+			for _, np := range g[point] {
+				if vt[np] == 0 {
+					nextPoints = append(nextPoints, np)
+					vt[np] = idleTime * 2
+				}
+			}
+		}
+		points = nextPoints
+	}
+
+	maxIdleTime := 0
+	for i := 1; i < len(patience); i++ {
+		t := vt[i]
+		if t > patience[i] {
+			t = (t-1)/patience[i]*patience[i] + t + 1
+		} else {
+			t++
+		}
+		if t > maxIdleTime {
+			maxIdleTime = t
+		}
+	}
+
+	return maxIdleTime
 }
