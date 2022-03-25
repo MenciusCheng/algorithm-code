@@ -196,3 +196,110 @@ func helperTargetSumWays(nums []int, t int, dp []int) {
 		}
 	}
 }
+
+/*
+https://leetcode-cn.com/problems/gaM7Ch/
+
+剑指 Offer II 103. 最少的硬币数目
+给定不同面额的硬币 coins 和一个总金额 amount。编写一个函数来计算可以凑成总金额所需的最少的硬币个数。如果没有任何一种硬币组合能组成总金额，返回 -1。
+
+你可以认为每种硬币的数量是无限的。
+
+示例 1：
+
+输入：coins = [1, 2, 5], amount = 11
+输出：3
+解释：11 = 5 + 5 + 1
+示例 2：
+
+输入：coins = [2], amount = 3
+输出：-1
+示例 3：
+
+输入：coins = [1], amount = 0
+输出：0
+示例 4：
+
+输入：coins = [1], amount = 1
+输出：1
+示例 5：
+
+输入：coins = [1], amount = 2
+输出：2
+
+提示：
+
+1 <= coins.length <= 12
+1 <= coins[i] <= 2^31 - 1
+0 <= amount <= 10^4
+
+注意：本题与主站 322 题相同： https://leetcode-cn.com/problems/coin-change/
+*/
+func coinChange(coins []int, amount int) int {
+	dp := make([]int, amount+1)
+	for i := 1; i <= amount; i++ {
+		dp[i] = amount + 1
+		for _, coin := range coins {
+			if coin <= i {
+				dp[i] = min(dp[i], dp[i-coin]+1)
+			}
+		}
+	}
+
+	if dp[amount] > amount {
+		return -1
+	} else {
+		return dp[amount]
+	}
+}
+
+/*
+https://leetcode-cn.com/problems/D0F0SV/
+
+剑指 Offer II 104. 排列的数目
+给定一个由 不同 正整数组成的数组 nums ，和一个目标整数 target 。请从 nums 中找出并返回总和为 target 的元素组合的个数。数组中的数字可以在一次排列中出现任意次，但是顺序不同的序列被视作不同的组合。
+
+题目数据保证答案符合 32 位整数范围。
+
+示例 1：
+
+输入：nums = [1,2,3], target = 4
+输出：7
+解释：
+所有可能的组合为：
+(1, 1, 1, 1)
+(1, 1, 2)
+(1, 2, 1)
+(1, 3)
+(2, 1, 1)
+(2, 2)
+(3, 1)
+请注意，顺序不同的序列被视作不同的组合。
+示例 2：
+
+输入：nums = [9], target = 3
+输出：0
+
+提示：
+
+1 <= nums.length <= 200
+1 <= nums[i] <= 1000
+nums 中的所有元素 互不相同
+1 <= target <= 1000
+
+进阶：如果给定的数组中含有负数会发生什么？问题会产生何种变化？如果允许负数出现，需要向题目中添加哪些限制条件？
+
+注意：本题与主站 377 题相同：https://leetcode-cn.com/problems/combination-sum-iv/
+*/
+func combinationSum4(nums []int, target int) int {
+	dp := make([]int, target+1)
+	dp[0] = 1
+	for i := 1; i <= target; i++ {
+		for _, num := range nums {
+			if num <= i {
+				dp[i] += dp[i-num]
+			}
+		}
+	}
+	return dp[target]
+}
