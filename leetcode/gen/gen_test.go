@@ -1,43 +1,71 @@
 package leetcode
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestGen(t *testing.T) {
 	desc := `
-258. 各位相加
-给定一个非负整数 num，反复将各个位上的数字相加，直到结果为一位数。返回这个结果。
+796. 旋转字符串
+给定两个字符串, s 和 goal。如果在若干次旋转操作之后，s 能变成 goal ，那么返回 true 。
+s 的 旋转操作 就是将 s 最左边的字符移动到最右边。
+例如, 若 s = 'abcde'，在旋转一次之后结果就是'bcdea' 。
 
 示例 1:
 
-输入: num = 38
-输出: 2 
-解释: 各位相加的过程为：
-38 --> 3 + 8 --> 11
-11 --> 1 + 1 --> 2
-由于 2 是一位数，所以返回 2。
-示例 1:
+输入: s = "abcde", goal = "cdeab"
+输出: true
+示例 2:
 
-输入: num = 0
-输出: 0 
+输入: s = "abcde", goal = "abced"
+输出: false
 
-提示：
+提示:
 
-0 <= num <= 2^31 - 1
+1 <= s.length, goal.length <= 100
+s 和 goal 由小写英文字母组成
 `
 
 	url := `
-https://leetcode-cn.com/problems/add-digits/
+https://leetcode-cn.com/problems/rotate-string/
 `
 
 	cal := `
-func addDigits(num int) int {
+func rotateString(s string, goal string) bool {
 
 }
 `
 
-	month := "m202203"
+	month := "m202204"
 
 	if err := Gen(desc, url, cal, month); err != nil {
 		t.Errorf("Gen error: %+v", err)
+	}
+}
+
+func TestArrStr(t *testing.T) {
+	type args struct {
+		str string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			args: args{
+				str: `
+7
+[[0,1],[1,2],[1,3],[2,4],[3,5],[4,6]]
+`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ArrStr(tt.args.str)
+			fmt.Println(got)
+		})
 	}
 }
