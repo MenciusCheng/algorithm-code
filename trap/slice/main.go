@@ -1,9 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func main() {
-	subSlice()
+	splitArr()
 }
 
 func subSlice() {
@@ -23,4 +26,11 @@ func sliceItemPointer() {
 		res = append(res, &item)
 	}
 	fmt.Println("res=", res)
+}
+
+func splitArr() {
+	arr := strings.Split("", ",")
+	fmt.Printf("arr: %+v, len: %d\n", arr, len(arr))
+	arr = strings.Split("afwef", ",")
+	fmt.Printf("arr: %+v, len: %d\n", arr, len(arr))
 }
