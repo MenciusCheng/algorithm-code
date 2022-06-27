@@ -34,3 +34,14 @@ func splitArr() {
 	arr = strings.Split("afwef", ",")
 	fmt.Printf("arr: %+v, len: %d\n", arr, len(arr))
 }
+
+func findRepeat(arr []string) {
+	m := make(map[string]bool)
+	for i, str := range arr {
+		if !m[str] {
+			m[str] = true
+		} else {
+			fmt.Printf("%d) %s\n", i, str)
+		}
+	}
+}
