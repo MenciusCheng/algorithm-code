@@ -7,38 +7,47 @@ import (
 
 func TestGen(t *testing.T) {
 	desc := `
-473. 火柴拼正方形
-你将得到一个整数数组 matchsticks ，其中 matchsticks[i] 是第 i 个火柴棒的长度。你要用 所有的火柴棍 拼成一个正方形。你 不能折断 任何一根火柴棒，但你可以把它们连在一起，而且每根火柴棒必须 使用一次 。
-如果你能使这个正方形，则返回 true ，否则返回 false 。
+241. 为运算表达式设计优先级
+给你一个由数字和运算符组成的字符串 expression ，按不同优先级组合数字和运算符，计算并返回所有可能组合的结果。你可以 按任意顺序 返回答案。
+生成的测试用例满足其对应输出值符合 32 位整数范围，不同结果的数量不超过 10^4 。
 
-示例 1:
+示例 1：
 
-输入: matchsticks = [1,1,2,2,2]
-输出: true
-解释: 能拼成一个边长为2的正方形，每边两根火柴。
-示例 2:
+输入：expression = "2-1-1"
+输出：[0,2]
+解释：
+((2-1)-1) = 0 
+(2-(1-1)) = 2
+示例 2：
 
-输入: matchsticks = [3,3,3,3,4]
-输出: false
-解释: 不能用所有火柴拼成一个正方形。 
+输入：expression = "2*3-4*5"
+输出：[-34,-14,-10,-10,10]
+解释：
+(2*(3-(4*5))) = -34 
+((2*3)-(4*5)) = -14 
+((2*(3-4))*5) = -10 
+(2*((3-4)*5)) = -10 
+(((2*3)-4)*5) = 10
 
-提示:
+提示：
 
-1 <= matchsticks.length <= 15
-1 <= matchsticks[i] <= 10^8
+1 <= expression.length <= 20
+expression 由数字和算符 '+'、'-' 和 '*' 组成。
+输入表达式中的所有整数值在范围 [0, 99] 
+
 `
 
 	url := `
-https://leetcode.cn/problems/matchsticks-to-square/
+https://leetcode.cn/problems/different-ways-to-add-parentheses/
 `
 
 	cal := `
-func makesquare(matchsticks []int) bool {
+func diffWaysToCompute(expression string) []int {
 
 }
 `
 
-	month := "m202206"
+	month := "m202207"
 
 	if err := Gen(desc, url, cal, month); err != nil {
 		t.Errorf("Gen error: %+v", err)
@@ -57,9 +66,12 @@ func TestArrStr(t *testing.T) {
 		{
 			args: args{
 				str: `
-输入：intervals = [[1,2]]
-输入：intervals = [[3,4],[2,3],[1,2]]
-输入：intervals = [[1,4],[2,3],[3,4]]
+输入：points = [[1,1],[2,3],[3,2]]
+输出：true
+示例 2：
+
+输入：points = [[1,1],[2,2],[3,3]]
+输出：false
 `,
 			},
 		},
