@@ -7,48 +7,50 @@ import (
 
 func TestGen(t *testing.T) {
 	desc := `
-1475. 商品折扣后的最终价格
-给你一个数组 prices ，其中 prices[i] 是商店里第 i 件商品的价格。
-商店里正在进行促销活动，如果你要买第 i 件商品，那么你可以得到与 prices[j] 相等的折扣，其中 j 是满足 j > i 且 prices[j] <= prices[i] 的 最小下标 ，如果没有满足条件的 j ，你将没有任何折扣。
-请你返回一个数组，数组中第 i 个元素是折扣后你购买商品 i 最终需要支付的价格。
+927. 三等分
+给定一个由 0 和 1 组成的数组 arr ，将数组分成  3 个非空的部分 ，使得所有这些部分表示相同的二进制值。
+
+如果可以做到，请返回任何 [i, j]，其中 i+1 < j，这样一来：
+
+arr[0], arr[1], ..., arr[i] 为第一部分；
+arr[i + 1], arr[i + 2], ..., arr[j - 1] 为第二部分；
+arr[j], arr[j + 1], ..., arr[arr.length - 1] 为第三部分。
+这三个部分所表示的二进制值相等。
+如果无法做到，就返回 [-1, -1]。
+
+注意，在考虑每个部分所表示的二进制时，应当将其看作一个整体。例如，[1,1,0] 表示十进制中的 6，而不会是 3。此外，前导零也是被允许的，所以 [0,1,1] 和 [1,1] 表示相同的值。
 
 示例 1：
 
-输入：prices = [8,4,6,2,3]
-输出：[4,2,4,2,3]
-解释：
-商品 0 的价格为 price[0]=8 ，你将得到 prices[1]=4 的折扣，所以最终价格为 8 - 4 = 4 。
-商品 1 的价格为 price[1]=4 ，你将得到 prices[3]=2 的折扣，所以最终价格为 4 - 2 = 2 。
-商品 2 的价格为 price[2]=6 ，你将得到 prices[3]=2 的折扣，所以最终价格为 6 - 2 = 4 。
-商品 3 和 4 都没有折扣。
+输入：arr = [1,0,1,0,1]
+输出：[0,3]
 示例 2：
 
-输入：prices = [1,2,3,4,5]
-输出：[1,2,3,4,5]
-解释：在这个例子中，所有商品都没有折扣。
-示例 3：
+输入：arr = [1,1,0,1,1]
+输出：[-1,-1]
+示例 3:
 
-输入：prices = [10,1,1,6]
-输出：[9,0,1,6]
+输入：arr = [1,1,0,0,1]
+输出：[0,2]
  
 
 提示：
 
-1 <= prices.length <= 500
-1 <= prices[i] <= 10^3
+3 <= arr.length <= 3 * 10^4
+arr[i] 是 0 或 1
 `
 
 	url := `
-https://leetcode.cn/problems/final-prices-with-a-special-discount-in-a-shop/
+https://leetcode.cn/problems/three-equal-parts/
 `
 
 	cal := `
-func finalPrices(prices []int) []int {
+func threeEqualParts(arr []int) []int {
 
 }
 `
 
-	month := "m202209"
+	month := "m202210"
 
 	if err := Gen(desc, url, cal, month); err != nil {
 		t.Errorf("Gen error: %+v", err)
@@ -67,10 +69,7 @@ func TestArrStr(t *testing.T) {
 		{
 			args: args{
 				str: `
-输入：groupSizes = [3,3,3,3,3,1,3]
-输出：[[5],[0,1,2],[3,4,6]]
-输入：groupSizes = [2,1,3,3,3,2]
-输出：[[1],[0,5],[2,3,4]]
+[[-10,-8],[8,9],[-5,0],[6,10],[-6,-4],[1,7],[9,10],[-4,7]]
 `,
 			},
 		},
