@@ -1,12 +1,13 @@
-package leetcode
+package main
 
 import (
 	"fmt"
-	"testing"
+	"reflect"
 )
 
-func TestGen(t *testing.T) {
-	desc := `
+/*
+https://leetcode.cn/problems/minimum-number-of-operations-to-move-all-balls-to-each-box/
+
 1769. 移动所有球到每个盒子所需的最小操作数
 中等
 49
@@ -34,48 +35,55 @@ func TestGen(t *testing.T) {
 n == boxes.length
 1 <= n <= 2000
 boxes[i] 为 '0' 或 '1'
-`
-
-	url := `
-https://leetcode.cn/problems/minimum-number-of-operations-to-move-all-balls-to-each-box/
-`
-
-	cal := `
-func minOperations(boxes string) []int {
-
-}
-`
-
-	month := "m202212"
-
-	if err := Gen(desc, url, cal, month); err != nil {
-		t.Errorf("Gen error: %+v", err)
-	}
-}
-
-func TestArrStr(t *testing.T) {
-	type args struct {
-		str string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
+*/
+func main() {
+	var tests = []struct {
+		boxes string
+		want  []int
 	}{
 		{
-			args: args{
-				str: `
-[[1,2,5],[2,1,7],[3,1,9]]
-[[23,11,21]]
-[[1,2,13],[2,1,7],[0,1,9]]
-`,
-			},
+			boxes: "110",
+			want:  []int{1, 1, 3},
+		},
+		{
+			boxes: "001011",
+			want:  []int{11, 8, 5, 4, 3, 4},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ArrStr(tt.args.str)
-			fmt.Println(got)
-		})
+
+	for _, item := range tests {
+		if ans := minOperations(item.boxes); reflect.DeepEqual(ans, item.want) {
+			fmt.Println(true)
+		} else {
+			fmt.Printf("ans: %+v, want: %+v\n", ans, item.want)
+		}
 	}
+}
+
+func minOperations(boxes string) []int {
+	res := make([]int, len(boxes))
+	var left, right, ans int
+
+	if boxes[0] == '1' {
+		left++
+	}
+	for i := 1; i < len(boxes); i++ {
+		if boxes[i] == '1' {
+			right++
+			ans += i
+		}
+	}
+	res[0] = ans
+
+	for i := 1; i < len(boxes); i++ {
+		ans += left
+		ans -= right
+		if boxes[i] == '1' {
+			left++
+			right--
+		}
+		res[i] = ans
+	}
+
+	return res
 }
