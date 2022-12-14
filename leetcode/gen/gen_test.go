@@ -7,41 +7,43 @@ import (
 
 func TestGen(t *testing.T) {
 	desc := `
-1769. 移动所有球到每个盒子所需的最小操作数
-中等
-49
-相关企业
-有 n 个盒子。给你一个长度为 n 的二进制字符串 boxes ，其中 boxes[i] 的值为 '0' 表示第 i 个盒子是 空 的，而 boxes[i] 的值为 '1' 表示盒子里有 一个 小球。
-在一步操作中，你可以将 一个 小球从某个盒子移动到一个与之相邻的盒子中。第 i 个盒子和第 j 个盒子相邻需满足 abs(i - j) == 1 。注意，操作执行后，某些盒子中可能会存在不止一个小球。
-返回一个长度为 n 的数组 answer ，其中 answer[i] 是将所有小球移动到第 i 个盒子所需的 最小 操作数。
-每个 answer[i] 都需要根据盒子的 初始状态 进行计算。
+1697. 检查边长度限制的路径是否存在
+困难
+给你一个 n 个点组成的无向图边集 edgeList ，其中 edgeList[i] = [ui, vi, disi] 表示点 ui 和点 vi 之间有一条长度为 disi 的边。请注意，两个点之间可能有 超过一条边 。
+给你一个查询数组queries ，其中 queries[j] = [pj, qj, limitj] ，你的任务是对于每个查询 queries[j] ，判断是否存在从 pj 到 qj 的路径，且这条路径上的每一条边都 严格小于 limitj 。
+请你返回一个 布尔数组 answer ，其中 answer.length == queries.length ，当 queries[j] 的查询结果为 true 时， answer 第 j 个值为 true ，否则为 false 。
 
 示例 1：
+输入：n = 3, edgeList = [[0,1,2],[1,2,4],[2,0,8],[1,0,16]], queries = [[0,1,2],[0,2,5]]
+输出：[false,true]
+解释：上图为给定的输入数据。注意到 0 和 1 之间有两条重边，分别为 2 和 16 。
+对于第一个查询，0 和 1 之间没有小于 2 的边，所以我们返回 false 。
+对于第二个查询，有一条路径（0 -> 1 -> 2）两条边都小于 5 ，所以这个查询我们返回 true 。
 
-输入：boxes = "110"
-输出：[1,1,3]
-解释：每个盒子对应的最小操作数如下：
-1) 第 1 个盒子：将一个小球从第 2 个盒子移动到第 1 个盒子，需要 1 步操作。
-2) 第 2 个盒子：将一个小球从第 1 个盒子移动到第 2 个盒子，需要 1 步操作。
-3) 第 3 个盒子：将一个小球从第 1 个盒子移动到第 3 个盒子，需要 2 步操作。将一个小球从第 2 个盒子移动到第 3 个盒子，需要 1 步操作。共计 3 步操作。
 示例 2：
-
-输入：boxes = "001011"
-输出：[11,8,5,4,3,4]
+输入：n = 5, edgeList = [[0,1,10],[1,2,5],[2,3,9],[3,4,13]], queries = [[0,4,14],[1,4,13]]
+输出：[true,false]
+解释：上图为给定数据。
 
 提示：
 
-n == boxes.length
-1 <= n <= 2000
-boxes[i] 为 '0' 或 '1'
+2 <= n <= 105
+1 <= edgeList.length, queries.length <= 10^5
+edgeList[i].length == 3
+queries[j].length == 3
+0 <= ui, vi, pj, qj <= n - 1
+ui != vi
+pj != qj
+1 <= disi, limitj <= 10^9
+两个点之间可能有 多条 边。
 `
 
 	url := `
-https://leetcode.cn/problems/minimum-number-of-operations-to-move-all-balls-to-each-box/
+https://leetcode.cn/problems/checking-existence-of-edge-length-limited-paths/description/
 `
 
 	cal := `
-func minOperations(boxes string) []int {
+func distanceLimitedPathsExist(n int, edgeList [][]int, queries [][]int) []bool {
 
 }
 `
@@ -65,9 +67,10 @@ func TestArrStr(t *testing.T) {
 		{
 			args: args{
 				str: `
-[[1,2,5],[2,1,7],[3,1,9]]
-[[23,11,21]]
-[[1,2,13],[2,1,7],[0,1,9]]
+[[0,1,2],[1,2,4],[2,0,8],[1,0,16]]
+[[0,1,2],[0,2,5]]
+[[0,1,10],[1,2,5],[2,3,9],[3,4,13]]
+[[0,4,14],[1,4,13]]
 `,
 			},
 		},

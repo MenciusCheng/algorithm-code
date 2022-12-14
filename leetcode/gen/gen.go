@@ -23,8 +23,13 @@ func Gen(desc, url, cal, month string) error {
 	}
 
 	fileName := "main.go"
-	directory := fmt.Sprintf("/Users/chengmengwei/goProject/algorithm-code/leetcode/%s/%s", month, question)
-	filePath := fmt.Sprintf("%s%s%s", directory, string(os.PathSeparator), fileName)
+
+	// windows
+	filePathNames := []string{"..", month, question, fileName}
+	filePath := strings.Join(filePathNames, "/")
+	// mac
+	//directory := fmt.Sprintf("/Users/chengmengwei/goProject/algorithm-code/leetcode/%s/%s", month, question)
+	//filePath := fmt.Sprintf("%s%s%s", directory, string(os.PathSeparator), fileName)
 
 	if err := BuildDir(filePath); err != nil {
 		return err
