@@ -31,3 +31,33 @@ func partition(nums []int, start, end int) int {
 
 	return small
 }
+
+func sortInts2(nums []int) {
+	dst := make([]int, len(nums))
+	copy(dst, nums)
+	mergeSort(dst, nums, 0, len(nums)-1)
+}
+
+func mergeSort(src, dst []int, start, end int) {
+	if start >= end {
+		return
+	}
+
+	mid := (start + end) >> 1
+	mergeSort(dst, src, start, mid)
+	mergeSort(dst, src, mid+1, end)
+
+	i := start
+	j := mid + 1
+	k := start
+	for i <= mid || j <= end {
+		if j > end || i <= mid && src[i] < src[j] {
+			dst[k] = src[i]
+			i++
+		} else {
+			dst[k] = src[j]
+			j++
+		}
+		k++
+	}
+}
