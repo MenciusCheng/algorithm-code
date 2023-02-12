@@ -7,48 +7,34 @@ import (
 
 func TestGen(t *testing.T) {
 	desc := `
-1697. 检查边长度限制的路径是否存在
-困难
-给你一个 n 个点组成的无向图边集 edgeList ，其中 edgeList[i] = [ui, vi, disi] 表示点 ui 和点 vi 之间有一条长度为 disi 的边。请注意，两个点之间可能有 超过一条边 。
-给你一个查询数组queries ，其中 queries[j] = [pj, qj, limitj] ，你的任务是对于每个查询 queries[j] ，判断是否存在从 pj 到 qj 的路径，且这条路径上的每一条边都 严格小于 limitj 。
-请你返回一个 布尔数组 answer ，其中 answer.length == queries.length ，当 queries[j] 的查询结果为 true 时， answer 第 j 个值为 true ，否则为 false 。
+1824. 最少侧跳次数
+中等
+83
+相关企业
+给你一个长度为 n 的 3 跑道道路 ，它总共包含 n + 1 个 点 ，编号为 0 到 n 。一只青蛙从 0 号点第二条跑道 出发 ，它想要跳到点 n 处。然而道路上可能有一些障碍。
 
-示例 1：
-输入：n = 3, edgeList = [[0,1,2],[1,2,4],[2,0,8],[1,0,16]], queries = [[0,1,2],[0,2,5]]
-输出：[false,true]
-解释：上图为给定的输入数据。注意到 0 和 1 之间有两条重边，分别为 2 和 16 。
-对于第一个查询，0 和 1 之间没有小于 2 的边，所以我们返回 false 。
-对于第二个查询，有一条路径（0 -> 1 -> 2）两条边都小于 5 ，所以这个查询我们返回 true 。
+给你一个长度为 n + 1 的数组 obstacles ，其中 obstacles[i] （取值范围从 0 到 3）表示在点 i 处的 obstacles[i] 跑道上有一个障碍。如果 obstacles[i] == 0 ，那么点 i 处没有障碍。任何一个点的三条跑道中 最多有一个 障碍。
 
-示例 2：
-输入：n = 5, edgeList = [[0,1,10],[1,2,5],[2,3,9],[3,4,13]], queries = [[0,4,14],[1,4,13]]
-输出：[true,false]
-解释：上图为给定数据。
+比方说，如果 obstacles[2] == 1 ，那么说明在点 2 处跑道 1 有障碍。
+这只青蛙从点 i 跳到点 i + 1 且跑道不变的前提是点 i + 1 的同一跑道上没有障碍。为了躲避障碍，这只青蛙也可以在 同一个 点处 侧跳 到 另外一条 跑道（这两条跑道可以不相邻），但前提是跳过去的跑道该点处没有障碍。
 
-提示：
+比方说，这只青蛙可以从点 3 处的跑道 3 跳到点 3 处的跑道 1 。
+这只青蛙从点 0 处跑道 2 出发，并想到达点 n 处的 任一跑道 ，请你返回 最少侧跳次数 。
 
-2 <= n <= 105
-1 <= edgeList.length, queries.length <= 10^5
-edgeList[i].length == 3
-queries[j].length == 3
-0 <= ui, vi, pj, qj <= n - 1
-ui != vi
-pj != qj
-1 <= disi, limitj <= 10^9
-两个点之间可能有 多条 边。
+注意：点 0 处和点 n 处的任一跑道都不会有障碍。
 `
 
 	url := `
-https://leetcode.cn/problems/checking-existence-of-edge-length-limited-paths/description/
+https://leetcode.cn/problems/minimum-sideway-jumps/
 `
 
 	cal := `
-func distanceLimitedPathsExist(n int, edgeList [][]int, queries [][]int) []bool {
+func minSideJumps(obstacles []int) int {
 
 }
 `
 
-	month := "m202212"
+	month := "m202301"
 
 	if err := Gen(desc, url, cal, month); err != nil {
 		t.Errorf("Gen error: %+v", err)
@@ -67,10 +53,7 @@ func TestArrStr(t *testing.T) {
 		{
 			args: args{
 				str: `
-[[0,1,2],[1,2,4],[2,0,8],[1,0,16]]
-[[0,1,2],[0,2,5]]
-[[0,1,10],[1,2,5],[2,3,9],[3,4,13]]
-[[0,4,14],[1,4,13]]
+[[0,0,1,0,0,0,0,1,0,0,0,0,0],[0,0,0,0,0,0,0,1,1,1,0,0,0],[0,1,1,0,1,0,0,0,0,0,0,0,0],[0,1,0,0,1,1,0,0,1,0,1,0,0],[0,1,0,0,1,1,0,0,1,1,1,0,0],[0,0,0,0,0,0,0,0,0,0,1,0,0],[0,0,0,0,0,0,0,1,1,1,0,0,0],[0,0,0,0,0,0,0,1,1,0,0,0,0]]
 `,
 			},
 		},

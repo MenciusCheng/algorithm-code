@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 func main() {
 	var cnt map[int]int
@@ -31,16 +34,31 @@ func main() {
 	}
 	fmt.Printf("最后 cnt:%+v\n", cnt)
 
-	//readNilChannel()
+	go func() {
+		time.Sleep(time.Second)
+		sendNilChannel()
+	}()
+	go func() {
+		time.Sleep(time.Second)
+		readNilChannel()
+	}()
+
 	//sendNilChannel()
+	//readNilChannel()
+	time.Sleep(3 * time.Second)
 }
 
+var ch chan int // 未初始化的 channel， 读写永久阻塞
+//var ch = make(chan int, 0)
+
 func readNilChannel() {
-	var ch chan int
-	<-ch // fatal error: all goroutines are asleep - deadlock!
+	fmt.Println("readNilChannel start")
+	<-ch
+	fmt.Println("readNilChannel done")
 }
 
 func sendNilChannel() {
-	var ch chan int
-	ch <- 6 // fatal error: all goroutines are asleep - deadlock!
+	fmt.Println("sendNilChannel start")
+	ch <- 6
+	fmt.Println("sendNilChannel done")
 }
