@@ -13,6 +13,7 @@ type Apple struct {
 
 type Dog struct {
 	Name string `json:"name"`
+	Age  int    `json:"age"`
 }
 
 type RP struct {
@@ -22,7 +23,7 @@ type RP struct {
 }
 
 func main() {
-	testRP()
+	structToJsonToMap()
 }
 
 func testRP() {
@@ -46,4 +47,41 @@ func testApple() {
 	}
 	bs, _ := json.Marshal(a)
 	fmt.Printf("%s\n", bs)
+}
+
+func mapToJsonToStruct() {
+	param := make(map[string]interface{})
+	param["name"] = "Good Dog"
+	param["age"] = 12
+
+	bytes, err := json.Marshal(param)
+	if err != nil {
+		panic(err)
+	}
+
+	dog := Dog{}
+	err = json.Unmarshal(bytes, &dog)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("dog: %+v\n", dog)
+}
+
+func structToJsonToMap() {
+	dog := Dog{
+		Name: "Good Dog",
+		Age:  12,
+	}
+
+	bytes, err := json.Marshal(dog)
+	if err != nil {
+		panic(err)
+	}
+
+	param := make(map[string]interface{})
+	err = json.Unmarshal(bytes, &param)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("param: %+v\n", param)
 }
