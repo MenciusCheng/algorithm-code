@@ -3,7 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	jsoniter "github.com/json-iterator/go"
 )
+
+var json2 = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type Apple struct {
 	Age int `json:"age,omitempty"`
@@ -84,4 +87,42 @@ func structToJsonToMap() {
 		panic(err)
 	}
 	fmt.Printf("param: %+v\n", param)
+}
+
+func UnmarshalPromotionV2Data(extension string) error {
+	data := PromotionV2Data{}
+	err := json.Unmarshal([]byte(extension), &data)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%+v\n", data)
+	return nil
+}
+
+func Unmarshal2PromotionV2Data(extension string) error {
+	data := PromotionV2Data{}
+	err := json2.Unmarshal([]byte(extension), &data)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%+v\n", data)
+	return nil
+}
+
+func Unmarshal2PromotionV2DataXX(extension string) error {
+	data := PromotionV2Data{}
+	err := json2.Unmarshal([]byte(extension), &data)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("data: %+v\n", data)
+
+	thirdData := &data
+	extensionByte, err := json2.Marshal(thirdData)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("extensionByte: %s\n", extensionByte)
+
+	return nil
 }
