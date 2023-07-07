@@ -7,47 +7,44 @@ import (
 
 func TestGen(t *testing.T) {
 	desc := `
-2611. 老鼠和奶酪
+1401. 圆和矩形是否有重叠
+提示
 中等
+82
+相关企业
+给你一个以 (radius, xCenter, yCenter) 表示的圆和一个与坐标轴平行的矩形 (x1, y1, x2, y2) ，其中 (x1, y1) 是矩形左下角的坐标，而 (x2, y2) 是右上角的坐标。
+如果圆和矩形有重叠的部分，请你返回 true ，否则返回 false 。
+换句话说，请你检测是否 存在 点 (xi, yi) ，它既在圆上也在矩形上（两者都包括点落在边界上的情况）。
 
-有两只老鼠和 n 块不同类型的奶酪，每块奶酪都只能被其中一只老鼠吃掉。
+示例 1 ：
 
-下标为 i 处的奶酪被吃掉的得分为：
+输入：radius = 1, xCenter = 0, yCenter = 0, x1 = 1, y1 = -1, x2 = 3, y2 = 1
+输出：true
+解释：圆和矩形存在公共点 (1,0) 。
+示例 2 ：
 
-如果第一只老鼠吃掉，则得分为 reward1[i] 。
-如果第二只老鼠吃掉，则得分为 reward2[i] 。
-给你一个正整数数组 reward1 ，一个正整数数组 reward2 ，和一个非负整数 k 。
+输入：radius = 1, xCenter = 1, yCenter = 1, x1 = 1, y1 = -3, x2 = 2, y2 = -1
+输出：false
+示例 3 ：
 
-请你返回第一只老鼠恰好吃掉 k 块奶酪的情况下，最大 得分为多少。
+输入：radius = 1, xCenter = 0, yCenter = 0, x1 = -1, y1 = 0, x2 = 0, y2 = 1
+输出：true
 
-示例 1：
-
-输入：reward1 = [1,1,3,4], reward2 = [4,4,1,1], k = 2
-输出：15
-解释：这个例子中，第一只老鼠吃掉第 2 和 3 块奶酪（下标从 0 开始），第二只老鼠吃掉第 0 和 1 块奶酪。
-总得分为 4 + 4 + 3 + 4 = 15 。
-15 是最高得分。
-示例 2：
-
-输入：reward1 = [1,1], reward2 = [1,1], k = 2
-输出：2
-解释：这个例子中，第一只老鼠吃掉第 0 和 1 块奶酪（下标从 0 开始），第二只老鼠不吃任何奶酪。
-总得分为 1 + 1 = 2 。
-2 是最高得分。
 
 提示：
 
-1 <= n == reward1.length == reward2.length <= 105
-1 <= reward1[i], reward2[i] <= 1000
-0 <= k <= n
+1 <= radius <= 2000
+-10^4 <= xCenter, yCenter <= 10^4
+-10^4 <= x1 < x2 <= 10^4
+-10^4 <= y1 < y2 <= 10^4
 `
 
 	url := `
-https://leetcode.cn/problems/mice-and-cheese/
+https://leetcode.cn/problems/circle-and-rectangle-overlapping/
 `
 
 	cal := `
-func miceAndCheese(reward1 []int, reward2 []int, k int) int {
+func checkOverlap(radius int, xCenter int, yCenter int, x1 int, y1 int, x2 int, y2 int) bool {
 
 }
 `
