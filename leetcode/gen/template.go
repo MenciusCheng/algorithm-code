@@ -19,8 +19,16 @@ func main() {
 		{{- end}}
 		want {{.AnsReturnType}}
 	}{
+		{{- if not .SubjectTests}}
+		{},
+		{{- end}}
+		{{- range .SubjectTests}}
 		{
+			{{- range .Params}}
+			{{ .Name }}: {{ .Value }},
+			{{- end}}
 		},
+		{{- end}}
 	}
 
 	for _, item := range tests {

@@ -10,6 +10,7 @@ import (
 )
 
 func Gen(desc, url, cal, month string) error {
+	// 解析参数
 	subject, err := NewSubject(desc, url, cal)
 	if err != nil {
 		panic(err)
@@ -40,11 +41,13 @@ func Gen(desc, url, cal, month string) error {
 		return err
 	}
 
+	// 生成文件内容
 	err = tmpl.Execute(file, subject)
 	if err != nil {
 		return err
 	}
 
+	// 格式化
 	cmd, err := exec.Command("gofmt", "-l", "-w", filePath).Output()
 	if err != nil {
 		return err
