@@ -1,12 +1,14 @@
-package leetcode
+package main
 
 import (
 	"fmt"
-	"testing"
+	"reflect"
+	"sort"
 )
 
-func TestGen(t *testing.T) {
-	desc := `
+/*
+https://leetcode.cn/problems/eliminate-maximum-number-of-monsters/
+
 1921. 消灭怪物的最大数量
 中等
 
@@ -41,62 +43,66 @@ func TestGen(t *testing.T) {
 输出：1
 解释：
 第 0 分钟开始时，怪物的距离是 [3,2,4]，你消灭了第一个怪物。
-第 1 分钟开始时，怪物的距离是 [X,0,2]，你输掉了游戏。 
+第 1 分钟开始时，怪物的距离是 [X,0,2]，你输掉了游戏。
 你只能消灭 1 个怪物。
 
 提示：
 
 n == dist.length == speed.length
-1 <= n <= 105
-1 <= dist[i], speed[i] <= 105
-`
-
-	url := `
-https://leetcode.cn/problems/eliminate-maximum-number-of-monsters/
-`
-
-	cal := `
-func eliminateMaximum(dist []int, speed []int) int {
-    
-}
-`
-
-	month := "m202309"
-
-	if err := Gen(desc, url, cal, month); err != nil {
-		t.Errorf("Gen error: %+v", err)
-	}
-}
-
-func TestArrStr(t *testing.T) {
-	type args struct {
-		str string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
+1 <= n <= 10^5
+1 <= dist[i], speed[i] <= 10^5
+*/
+func main() {
+	var tests = []struct {
+		dist  []int
+		speed []int
+		want  int
 	}{
 		{
-			args: args{
-				str: `
-示例 1：
-
-输入：intervals = [[1,3],[2,6],[8,10],[15,18]]
-输出：[[1,6],[8,10],[15,18]]
-解释：区间 [1,3] 和 [2,6] 重叠, 将它们合并为 [1,6].
-示例 2：
-
-输入：intervals = [[1,4],[4,5]]
-输出：[[1,5]]
-解释：区间 [1,4] 和 [4,5] 可被视为重叠区间。`,
-			},
+			dist:  []int{1, 3, 4},
+			speed: []int{1, 1, 1},
+			want:  3,
+		},
+		{
+			dist:  []int{1, 1, 2, 3},
+			speed: []int{1, 1, 1, 1},
+			want:  1,
+		},
+		{
+			dist:  []int{3, 2, 4},
+			speed: []int{5, 3, 2},
+			want:  1,
+		},
+		{
+			dist:  []int{3, 5, 7, 4, 5},
+			speed: []int{2, 3, 6, 3, 2},
+			want:  2,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ArrStr(tt.args.str)
-			fmt.Println(got)
-		})
+
+	for _, item := range tests {
+		if ans := eliminateMaximum(item.dist, item.speed); reflect.DeepEqual(ans, item.want) {
+			fmt.Println(true)
+		} else {
+			fmt.Printf("ans: %+v, want: %+v\n", ans, item.want)
+		}
 	}
+}
+
+func eliminateMaximum(dist []int, speed []int) int {
+	list := make([]int, len(dist))
+	for i := range dist {
+		list[i] = dist[i] / speed[i]
+		if dist[i]%speed[i] > 0 {
+			list[i] += 1
+		}
+	}
+	sort.Ints(list)
+
+	for i := 0; i < len(list); i++ {
+		if list[i] <= i {
+			return i
+		}
+	}
+	return len(list)
 }

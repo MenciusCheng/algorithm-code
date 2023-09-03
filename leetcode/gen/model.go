@@ -169,9 +169,9 @@ func CalInputSubjectTestParam(param SubjectParam, line string) (SubjectTestParam
 	case "int":
 		paramRegStr = fmt.Sprintf(`%s\s*=\s*([0-9\-]+)`, param.Name)
 	case "string":
-		paramRegStr = fmt.Sprintf(`%s\s*=\s*("[\w\[\], \-+*/=.@!#$]*")`, param.Name)
+		paramRegStr = fmt.Sprintf(`%s\s*=\s*("[\w\[\], \-]*")`, param.Name)
 	case "[]int", "[][]int", "[]string":
-		paramRegStr = fmt.Sprintf(`%s\s*=\s*\[([\w\[\], \-+*/=.@!#$]*)\]`, param.Name)
+		paramRegStr = fmt.Sprintf(`%s\s*=\s*\[([\w\[\], \-]*)\]`, param.Name)
 	case "bool":
 		paramRegStr = fmt.Sprintf(`%s\s*=\s*(true|false)`, param.Name)
 	}
@@ -211,9 +211,9 @@ func CalOutputSubjectTestParam(ansReturnType string, line string) (SubjectTestPa
 	case "int":
 		paramReg = regexp.MustCompile(`([0-9\-]+)`)
 	case "string":
-		paramReg = regexp.MustCompile(`("[\w\[\], \-+*/=.@!#$]*")`)
+		paramReg = regexp.MustCompile(`("[\w\[\], \-]*")`)
 	case "[]int", "[][]int", "[]string":
-		paramReg = regexp.MustCompile(`\[([\w\[\], \-+*/=.@!#$]*)\]`)
+		paramReg = regexp.MustCompile(`\[([\w\[\], \-]*)\]`)
 	case "bool":
 		paramReg = regexp.MustCompile(`(true|false)`)
 	}
