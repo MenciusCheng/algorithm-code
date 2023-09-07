@@ -96,7 +96,7 @@ func (s *Subject) parseAns() error {
 	if len(ansArr) >= 3 && strings.TrimSpace(ansArr[len(ansArr)-1]) == "}" {
 		var body string
 		switch s.AnsReturnType {
-		case "int":
+		case "int", "int64", "int32", "int16", "int8", "uint", "uint64", "uint32", "uint16", "uint8":
 			body = "return 0"
 		case "string":
 			body = "return \"\""
@@ -166,7 +166,7 @@ func CalInputSubjectTestParam(param SubjectParam, line string) (SubjectTestParam
 
 	paramRegStr := ""
 	switch param.Type {
-	case "int":
+	case "int", "int64", "int32", "int16", "int8", "uint", "uint64", "uint32", "uint16", "uint8":
 		paramRegStr = fmt.Sprintf(`%s\s*=\s*([0-9\-]+)`, param.Name)
 	case "string":
 		paramRegStr = fmt.Sprintf(`%s\s*=\s*("[\w\[\], \-]*")`, param.Name)
@@ -208,7 +208,7 @@ func CalOutputSubjectTestParam(ansReturnType string, line string) (SubjectTestPa
 
 	var paramReg *regexp.Regexp
 	switch ansReturnType {
-	case "int":
+	case "int", "int64", "int32", "int16", "int8", "uint", "uint64", "uint32", "uint16", "uint8":
 		paramReg = regexp.MustCompile(`([0-9\-]+)`)
 	case "string":
 		paramReg = regexp.MustCompile(`("[\w\[\], \-]*")`)
