@@ -1,12 +1,14 @@
-package leetcode
+package main
 
 import (
 	"fmt"
-	"testing"
+	"math"
+	"reflect"
 )
 
-func TestGen(t *testing.T) {
-	desc := `
+/*
+https://leetcode.cn/problems/minimum-time-to-repair-cars/
+
 2594. 修车的最少时间
 提示
 中等
@@ -42,54 +44,53 @@ func TestGen(t *testing.T) {
 1 <= ranks.length <= 10^5
 1 <= ranks[i] <= 100
 1 <= cars <= 10^6
-`
-
-	url := `
-https://leetcode.cn/problems/minimum-time-to-repair-cars/
-`
-
-	cal := `
-func repairCars(ranks []int, cars int) int64 {
-
-}
-`
-
-	month := "m202309"
-
-	if err := Gen(desc, url, cal, month); err != nil {
-		t.Errorf("Gen error: %+v", err)
-	}
-}
-
-func TestArrStr(t *testing.T) {
-	type args struct {
-		str string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
+*/
+func main() {
+	var tests = []struct {
+		ranks []int
+		cars  int
+		want  int64
 	}{
 		{
-			args: args{
-				str: `
-示例 1：
-
-输入：intervals = [[1,3],[2,6],[8,10],[15,18]]
-输出：[[1,6],[8,10],[15,18]]
-解释：区间 [1,3] 和 [2,6] 重叠, 将它们合并为 [1,6].
-示例 2：
-
-输入：intervals = [[1,4],[4,5]]
-输出：[[1,5]]
-解释：区间 [1,4] 和 [4,5] 可被视为重叠区间。`,
-			},
+			ranks: []int{4, 2, 3, 1},
+			cars:  10,
+			want:  16,
+		},
+		{
+			ranks: []int{5, 1, 8},
+			cars:  6,
+			want:  16,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ArrStr(tt.args.str)
-			fmt.Println(got)
-		})
+
+	for _, item := range tests {
+		if ans := repairCars(item.ranks, item.cars); reflect.DeepEqual(ans, item.want) {
+			fmt.Println(true)
+		} else {
+			fmt.Printf("ans: %+v, want: %+v\n", ans, item.want)
+		}
 	}
+}
+
+func repairCars(ranks []int, cars int) int64 {
+	l, r := 1, ranks[0]*cars*cars
+
+	check := func(t int) bool {
+		sum := 0
+		for _, rank := range ranks {
+			sum += int(math.Sqrt(float64(t / rank)))
+		}
+		return sum >= cars
+	}
+
+	for l < r {
+		t := (l + r) / 2
+		if check(t) {
+			r = t
+		} else {
+			l = t + 1
+		}
+	}
+
+	return int64(r)
 }
