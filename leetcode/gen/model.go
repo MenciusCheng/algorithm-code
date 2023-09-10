@@ -191,6 +191,8 @@ func CalInputSubjectTestParam(param SubjectParam, line string) (SubjectTestParam
 		value = strings.ReplaceAll(value, "]", "}")
 		res.Value = fmt.Sprintf("[][]int{%s}", value)
 	case "[]string":
+		res.Value = fmt.Sprintf("[]string{%s}", paramMatchs[1])
+	case "[][]string":
 		value := paramMatchs[1]
 		value = strings.ReplaceAll(value, "[", "{")
 		value = strings.ReplaceAll(value, "]", "}")
@@ -223,6 +225,24 @@ func CalOutputSubjectTestParam(ansReturnType string, line string) (SubjectTestPa
 	}
 
 	res.Name = "want"
-	res.Value = paramMatchs[1]
+	switch ansReturnType {
+	case "[]int":
+		res.Value = fmt.Sprintf("[]int{%s}", paramMatchs[1])
+	case "[][]int":
+		value := paramMatchs[1]
+		value = strings.ReplaceAll(value, "[", "{")
+		value = strings.ReplaceAll(value, "]", "}")
+		res.Value = fmt.Sprintf("[][]int{%s}", value)
+	case "[]string":
+		res.Value = fmt.Sprintf("[]string{%s}", paramMatchs[1])
+	case "[][]string":
+		value := paramMatchs[1]
+		value = strings.ReplaceAll(value, "[", "{")
+		value = strings.ReplaceAll(value, "]", "}")
+		res.Value = fmt.Sprintf("[][]string{%s}", value)
+	default:
+		res.Value = paramMatchs[1]
+	}
+
 	return res, nil
 }
