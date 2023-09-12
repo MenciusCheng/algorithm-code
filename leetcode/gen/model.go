@@ -106,8 +106,12 @@ func (s *Subject) parseAns() error {
 			body = "return [][]int{}"
 		case "[]string":
 			body = "return []string{}"
+		case "[][]string":
+			body = "return [][]string{}"
 		case "bool":
 			body = "return false"
+		case "[]bool":
+			body = "return []bool{}"
 		}
 		if body != "" {
 			ansArr[len(ansArr)-2] = body
@@ -170,7 +174,7 @@ func CalInputSubjectTestParam(param SubjectParam, line string) (SubjectTestParam
 		paramRegStr = fmt.Sprintf(`%s\s*=\s*([0-9\-]+)`, param.Name)
 	case "string":
 		paramRegStr = fmt.Sprintf(`%s\s*=\s*("[\w\[\], \-]*")`, param.Name)
-	case "[]int", "[][]int", "[]string":
+	case "[]int", "[][]int", "[]string", "[][]string", "[]bool":
 		paramRegStr = fmt.Sprintf(`%s\s*=\s*\[([\w\[\], \-]*)\]`, param.Name)
 	case "bool":
 		paramRegStr = fmt.Sprintf(`%s\s*=\s*(true|false)`, param.Name)
@@ -197,6 +201,8 @@ func CalInputSubjectTestParam(param SubjectParam, line string) (SubjectTestParam
 		value = strings.ReplaceAll(value, "[", "{")
 		value = strings.ReplaceAll(value, "]", "}")
 		res.Value = fmt.Sprintf("[][]string{%s}", value)
+	case "[]bool":
+		res.Value = fmt.Sprintf("[]bool{%s}", paramMatchs[1])
 	default:
 		res.Value = paramMatchs[1]
 	}
@@ -214,7 +220,7 @@ func CalOutputSubjectTestParam(ansReturnType string, line string) (SubjectTestPa
 		paramReg = regexp.MustCompile(`([0-9\-]+)`)
 	case "string":
 		paramReg = regexp.MustCompile(`("[\w\[\], \-]*")`)
-	case "[]int", "[][]int", "[]string":
+	case "[]int", "[][]int", "[]string", "[][]string", "[]bool":
 		paramReg = regexp.MustCompile(`\[([\w\[\], \-]*)\]`)
 	case "bool":
 		paramReg = regexp.MustCompile(`(true|false)`)
@@ -240,6 +246,8 @@ func CalOutputSubjectTestParam(ansReturnType string, line string) (SubjectTestPa
 		value = strings.ReplaceAll(value, "[", "{")
 		value = strings.ReplaceAll(value, "]", "}")
 		res.Value = fmt.Sprintf("[][]string{%s}", value)
+	case "[]bool":
+		res.Value = fmt.Sprintf("[]bool{%s}", paramMatchs[1])
 	default:
 		res.Value = paramMatchs[1]
 	}
