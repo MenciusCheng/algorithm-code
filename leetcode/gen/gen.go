@@ -16,7 +16,7 @@ func Gen(desc, url, cal, month string) error {
 		panic(err)
 	}
 
-	question := fmt.Sprintf("q%d", subject.QuestionNum)
+	question := fmt.Sprintf("q%s", subject.QuestionPrefix)
 
 	tmpl, err := template.New("CheckInSubject").Parse(CheckInSubject)
 	if err != nil {

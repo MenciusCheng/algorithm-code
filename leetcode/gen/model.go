@@ -14,11 +14,12 @@ type Subject struct {
 	Ans  string // 解答函数
 
 	// 解析内容
-	QuestionNum   int            // 题目编号
-	AnsFuncName   string         // 解答函数名
-	AnsParams     []SubjectParam // 解答函数参数列表
-	AnsReturnType string         // 解答函数返回类型
-	SubjectTests  []SubjectTest  // 示例列表
+	QuestionNum    int            // 题目编号
+	QuestionPrefix string         // 题目前缀标识（英文+数字）
+	AnsFuncName    string         // 解答函数名
+	AnsParams      []SubjectParam // 解答函数参数列表
+	AnsReturnType  string         // 解答函数返回类型
+	SubjectTests   []SubjectTest  // 示例列表
 }
 
 type SubjectParam struct {
@@ -48,12 +49,20 @@ func NewSubject(desc string, url string, ans string) (*Subject, error) {
 	}
 
 	// 解析题目编号
-	questionNumReg := regexp.MustCompile(`^\s*(\d+)`)
+	questionNumReg := regexp.MustCompile(`^[a-zA-Z ]*(\d+)`)
 	questionNumSubmatch := questionNumReg.FindStringSubmatch(subject.Desc)
 	if len(questionNumSubmatch) != 2 {
 		return nil, fmt.Errorf("questionNumSubmatch length is not equal to 2: %+v", questionNumSubmatch)
 	}
 	subject.QuestionNum, _ = strconv.Atoi(questionNumSubmatch[1])
+
+	// 解析题目编号
+	questionPrefixReg := regexp.MustCompile(`^([a-zA-Z 0-9]+)`)
+	questionPrefixSubmatch := questionPrefixReg.FindStringSubmatch(subject.Desc)
+	if len(questionPrefixSubmatch) != 2 {
+		return nil, fmt.Errorf("questionPrefixSubmatch length is not equal to 2: %+v", questionPrefixSubmatch)
+	}
+	subject.QuestionPrefix = strings.ReplaceAll(questionPrefixSubmatch[1], " ", "")
 
 	// 解析示例，失败不影响生成文件
 	if err := subject.parseTest(); err != nil {
