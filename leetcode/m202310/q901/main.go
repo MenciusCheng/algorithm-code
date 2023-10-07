@@ -1,12 +1,10 @@
-package leetcode
+package main
 
-import (
-	"fmt"
-	"testing"
-)
+import "fmt"
 
-func TestGen(t *testing.T) {
-	desc := `
+/*
+https://leetcode.cn/problems/online-stock-span/description/
+
 901. 股票价格跨度
 
 中等
@@ -36,50 +34,43 @@ stockSpanner.next(70);  // 返回 2
 stockSpanner.next(60);  // 返回 1
 stockSpanner.next(75);  // 返回 4 ，因为截至今天的最后 4 个股价 (包括今天的股价 75) 都小于或等于今天的股价。
 stockSpanner.next(85);  // 返回 6
- 
+
 提示：
 
 1 <= price <= 10^5
 最多调用 next 方法 10^4 次
-`
-
-	url := `
-https://leetcode.cn/problems/online-stock-span/description/
-`
-
-	cal := `
-func Put(key int, value int)  {
-
-}
-`
-
-	month := "m202310"
-
-	if err := Gen(desc, url, cal, month); err != nil {
-		t.Errorf("Gen error: %+v", err)
-	}
+*/
+func main() {
+	stockSpanner := Constructor()
+	fmt.Println(stockSpanner.Next(100)) // 返回 1
+	fmt.Println(stockSpanner.Next(80))  // 返回 1
+	fmt.Println(stockSpanner.Next(60))  // 返回 1
+	fmt.Println(stockSpanner.Next(70))  // 返回 2
+	fmt.Println(stockSpanner.Next(60))  // 返回 1
+	fmt.Println(stockSpanner.Next(75))  // 返回 4 ，因为截至今天的最后 4 个股价 (包括今天的股价 75) 都小于或等于今天的股价。
+	fmt.Println(stockSpanner.Next(85))  // 返回 6
 }
 
-func TestArrStr(t *testing.T) {
-	type args struct {
-		str string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			args: args{
-				str: `
-[[24,11,22,17,4],[21,16,5,12,9],[6,23,10,3,18],[15,20,1,8,13],[0,7,14,19,2]]`,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ArrStr(tt.args.str)
-			fmt.Println(got)
-		})
-	}
+type StockSpanner struct {
+	Stack [][]int
 }
+
+func Constructor() StockSpanner {
+	return StockSpanner{}
+}
+
+func (this *StockSpanner) Next(price int) int {
+	count := 1
+	for len(this.Stack) > 0 && price >= this.Stack[len(this.Stack)-1][0] {
+		count += this.Stack[len(this.Stack)-1][1]
+		this.Stack = this.Stack[:len(this.Stack)-1]
+	}
+	this.Stack = append(this.Stack, []int{price, count})
+	return count
+}
+
+/**
+ * Your StockSpanner object will be instantiated and called as such:
+ * obj := Constructor();
+ * param_1 := obj.Next(price);
+ */
