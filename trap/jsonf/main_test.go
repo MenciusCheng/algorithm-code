@@ -83,3 +83,7 @@ func TestUnmarshal2PromotionV2DataXX(t *testing.T) {
 		})
 	}
 }
+
+func TestMapToJson(t *testing.T) {
+	MapToJsonToMapToJson()
+}
