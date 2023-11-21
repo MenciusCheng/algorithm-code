@@ -122,3 +122,7 @@ func Test_findRepeat(t *testing.T) {
 		})
 	}
 }
+
+func Test_splitArrN(t *testing.T) {
+	splitArrN()
+}

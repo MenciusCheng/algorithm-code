@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -44,4 +45,16 @@ func findRepeat(arr []string) {
 			fmt.Printf("%d) %s\n", i, str)
 		}
 	}
+}
+
+func splitArrN() {
+	arr := strings.Split("a,b,c,d", ",")
+	bs, _ := json.Marshal(arr)
+	fmt.Printf("arr: %s\n", string(bs))
+	arr = strings.SplitN("a,b,c,d", ",", 3)
+	bs, _ = json.Marshal(arr)
+	fmt.Printf("arr: %s\n", string(bs))
+	arr = strings.SplitN("a,b,c,d", ",", 5)
+	bs, _ = json.Marshal(arr)
+	fmt.Printf("arr: %s\n", string(bs))
 }
