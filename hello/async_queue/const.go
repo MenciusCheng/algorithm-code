@@ -1,37 +1,28 @@
 package async_queue
 
-import "fmt"
-
-const QueuePrefix = ""
-
-const QueueConcurrency = "Platform:Queue:Concurrency"
-
 const (
-	DefaultBatchSize = 10
+	// 默认并发执行任务数
+	DefaultConcurrency = 1
+	// 默认最大重试次数
+	DefaultRetryMax = 10
+	// 默认任务处理超时秒数
+	DefaultTimeout = 60 * 60
 )
 
-// 队列的key
-func GetQueueKey(entity *AsyncQueue) string {
-	lastNum := ":Num:%d"
-	if entity == nil {
-		return QueueConcurrency + lastNum
-	}
-	if entity.OneLevelName != "" && entity.TwoLevelName != "" && entity.ThreeLevelName != "" {
-		key := fmt.Sprintf(QueueConcurrency+":OneLevel:%s:TwoLevel:%s:ThreeLevel:%s", entity.OneLevelName, entity.TwoLevelName, entity.ThreeLevelName)
-		return key + lastNum
-	}
-	if entity.OneLevelName != "" && entity.TwoLevelName != "" {
-		key := fmt.Sprintf(QueueConcurrency+":OneLevel:%s:TwoLevel:%s", entity.OneLevelName, entity.TwoLevelName)
-		return key + lastNum
-	}
-	if entity.OneLevelName != "" {
-		key := fmt.Sprintf(QueueConcurrency+":OneLevel:%s", entity.OneLevelName)
-		return key + lastNum
-	}
-	return QueueConcurrency + lastNum
-}
+// 队列优先级
+const (
+	QueuePriorityLow     = 1
+	QueuePriorityDefault = 3
+	QueuePriorityHigh    = 5
+)
 
-// 并发生成的队列数
-func GetQueueConcurrencyKey(queue string, num int64) string {
-	return fmt.Sprintf(queue, num)
+// 任务类型
+const (
+	TaskTypeNormal = "normal"
+	TaskTypeDAG    = "dag"
+)
+
+// 默认优先级队列配置
+func GetDefaultPriorities() []int64 {
+	return []int64{QueuePriorityHigh, QueuePriorityDefault, QueuePriorityLow}
 }

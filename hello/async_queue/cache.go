@@ -29,17 +29,68 @@ return 1
 `)
 
 // Schedule adds the task to the scheduled set to be processed in the future.
-func (a *AsyncQueue) Schedule(msg *TaskMessage, processAt int64) error {
+func (a *AsyncQueue) Schedule(msg *TaskMessage) error {
 	keys := []string{
 		a.TaskKey(msg.ID),
-		a.ScheduleKey(),
+		a.ScheduleKey(msg.Priority),
 	}
 	argv := []interface{}{
 		msg.Payload,
-		processAt,
+		msg.ProcessAt,
 		msg.ID,
 	}
 	n, err := scheduleCmd.Run(a.RedisConn, keys, argv...).Int64()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return errors.New("msg exists")
+	}
+	return nil
+}
+
+// dagingCmd enqueues a given task message.
+//
+// Input:
+// KEYS[1] -> asynq:{<qname>}:t:<task_id>
+// KEYS[2] -> asynq:{<qname>}:daging
+// --
+// ARGV[1] -> task message data
+// ARGV[2] -> task ID
+// ARGV[3] -> current unix time in nsec
+//
+// Output:
+// Returns 1 if successfully enqueued
+// Returns 0 if task ID already exists
+var dagingCmd = redis.NewScript(`
+if redis.call("EXISTS", KEYS[1]) == 1 then
+	return 0
+end
+redis.call("HSET", KEYS[1],
+           "msg", ARGV[1],
+           "id", ARGV[2],
+           "state", "daging",
+           "waitpre_since", ARGV[3],
+           "type", ARGV[4],
+           "preTaskID", ARGV[5])
+redis.call("ZADD", KEYS[2], ARGV[3], ARGV[2])
+return 1
+`)
+
+// DAGing adds the given task to the dagingCmd list of the queue.
+func (a *AsyncQueue) DAGing(msg *TaskMessage) error {
+	keys := []string{
+		a.TaskKey(msg.ID),
+		a.DAGingKey(msg.Priority),
+	}
+	argv := []interface{}{
+		msg.Payload,
+		msg.ID,
+		time.Now().Unix(),
+		msg.Type,
+		msg.PreTaskID,
+	}
+	n, err := dagingCmd.Run(a.RedisConn, keys, argv...).Int64()
 	if err != nil {
 		return err
 	}
@@ -81,7 +132,7 @@ return 1
 func (a *AsyncQueue) Pending(msg *TaskMessage) error {
 	keys := []string{
 		a.TaskKey(msg.ID),
-		a.PendingKey(),
+		a.PendingKey(msg.Priority),
 	}
 	argv := []interface{}{
 		msg.Payload,
@@ -129,11 +180,11 @@ return nil`)
 // off a queue if one exists and returns the message and its lease expiration time.
 // Dequeue skips a queue if the queue is paused.
 // If all queues are empty, ErrNoProcessableTask error is returned.
-func (a *AsyncQueue) Active() (msg *TaskMessage, err error) {
+func (a *AsyncQueue) Active(priority int64) (msg *TaskMessage, err error) {
 	msg = &TaskMessage{}
 
 	keys := []string{
-		a.PendingKey(),
+		a.PendingKey(priority),
 		a.ActiveKey(),
 	}
 	argv := []interface{}{
@@ -217,7 +268,7 @@ return redis.status_reply("OK")`)
 func (a *AsyncQueue) Requeue(msg *TaskMessage) error {
 	keys := []string{
 		a.ActiveKey(),
-		a.PendingKey(),
+		a.PendingKey(msg.Priority),
 		a.TaskKey(msg.ID),
 	}
 	argv := []interface{}{
@@ -234,22 +285,30 @@ func (a *AsyncQueue) GetTaskStatus(id string) (string, error) {
 	return state, nil
 }
 
-func (a *AsyncQueue) TaskKeyPrefix() string {
-	return fmt.Sprintf("AsyncQueue:{%s}:task:", a.QueueName)
+func (a *AsyncQueue) QueueKeyPrefix() string {
+	return fmt.Sprintf("AsyncQueue:{%s}", a.QueueName)
 }
 
 func (a *AsyncQueue) TaskKey(id string) string {
-	return fmt.Sprintf("AsyncQueue:{%s}:task:%s", a.QueueName, id)
+	return fmt.Sprintf("%s:task:%s", a.QueueKeyPrefix(), id)
 }
 
-func (a *AsyncQueue) ScheduleKey() string {
-	return fmt.Sprintf("AsyncQueue:{%s}:schedule", a.QueueName)
+func (a *AsyncQueue) TaskKeyPrefix() string {
+	return fmt.Sprintf("%s:task:", a.QueueKeyPrefix())
 }
 
-func (a *AsyncQueue) PendingKey() string {
-	return fmt.Sprintf("AsyncQueue:{%s}:pending", a.QueueName)
+func (a *AsyncQueue) ScheduleKey(priority int64) string {
+	return fmt.Sprintf("%s:p%d:schedule", a.QueueKeyPrefix(), priority)
+}
+
+func (a *AsyncQueue) DAGingKey(priority int64) string {
+	return fmt.Sprintf("%s:p%d:daging", a.QueueKeyPrefix(), priority)
+}
+
+func (a *AsyncQueue) PendingKey(priority int64) string {
+	return fmt.Sprintf("%s:p%d:pending", a.QueueKeyPrefix(), priority)
 }
 
 func (a *AsyncQueue) ActiveKey() string {
-	return fmt.Sprintf("AsyncQueue:{%s}:active", a.QueueName)
+	return fmt.Sprintf("%s:active", a.QueueKeyPrefix())
 }

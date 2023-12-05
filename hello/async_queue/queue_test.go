@@ -22,7 +22,7 @@ func InitClient() *redis.Client {
 func TestAsyncQueue_Client(t *testing.T) {
 	client := InitClient()
 
-	queueEntity := NewAsyncQueueEntity(
+	queueEntity := NewAsyncQueue(
 		ConfigName("TestQueueA"),
 		ConfigRedisConn(client),
 	)
@@ -30,7 +30,7 @@ func TestAsyncQueue_Client(t *testing.T) {
 
 	for i := 0; i < total; i++ {
 		data := fmt.Sprintf("{\"id\":%d}", i)
-		_ = queueEntity.Publish(Task{
+		_ = queueEntity.Publish(&TaskInfo{
 			Payload: []byte(data),
 		})
 		time.Sleep(10 * time.Millisecond)
@@ -40,21 +40,22 @@ func TestAsyncQueue_Client(t *testing.T) {
 func TestAsyncQueue_Server(t *testing.T) {
 	client := InitClient()
 
-	myHandler := func(param *HandlerParam) {
+	myHandler := func(param *TaskInfo) error {
 		log.Println("处理任务", "data", string(param.Payload))
+		return nil
 	}
 
-	queueEntity := NewAsyncQueueEntity(
+	queueEntity := NewAsyncQueue(
 		ConfigName("TestQueueA"),
-		ConfigMaxQueueConcurrencyNum(3),
+		ConfigConcurrency(3),
 		ConfigRedisConn(client),
-		ConfigHandler(myHandler),
+		ConfigHandler(HandlerFunc(myHandler)),
 	)
 
 	// 初始化调用队列数据
-	err := queueEntity.InitQueue()
+	err := queueEntity.StartConsuming()
 	if err != nil {
-		t.Errorf("InitQueue err: %v", err)
+		t.Errorf("StartConsuming err: %v", err)
 		return
 	}
 
@@ -64,23 +65,23 @@ func TestAsyncQueue_Server(t *testing.T) {
 func TestAsyncQueue_DAG(t *testing.T) {
 	client := InitClient()
 
-	myHandler := func(param *HandlerParam) {
+	myHandler := func(param *TaskInfo) error {
 		log.Println("处理任务", "data", string(param.Payload))
+		return nil
 	}
 
-	queueEntity := NewAsyncQueueEntity(
+	queueEntity := NewAsyncQueue(
 		ConfigName("TestQueueA"),
-		ConfigMaxQueueConcurrencyNum(3),
+		ConfigConcurrency(3),
 		ConfigRedisConn(client),
-		ConfigHandler(myHandler),
+		ConfigHandler(HandlerFunc(myHandler)),
 	)
 
 	total := 10
-	tasks := make([]Task, 0, total)
+	tasks := make([]TaskInfo, 0, total)
 	for i := 0; i < total; i++ {
 		data := fmt.Sprintf("{\"id\":%d}", i)
-		tasks = append(tasks, Task{
-			Type:    TaskTypeDAG,
+		tasks = append(tasks, TaskInfo{
 			Payload: []byte(data),
 		})
 	}
@@ -88,9 +89,9 @@ func TestAsyncQueue_DAG(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// 初始化调用队列数据
-	err := queueEntity.InitQueue()
+	err := queueEntity.StartConsuming()
 	if err != nil {
-		t.Errorf("InitQueue err: %v", err)
+		t.Errorf("StartConsuming err: %v", err)
 		return
 	}
 
@@ -103,7 +104,7 @@ func TestTaskQueueEntity_Run(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	lock := &sync.RWMutex{}
 	got := make(map[string]bool)
-	myHandler := func(param *HandlerParam) {
+	myHandler := func(param *TaskInfo) error {
 		defer func() {
 			wg.Done()
 		}()
@@ -112,21 +113,22 @@ func TestTaskQueueEntity_Run(t *testing.T) {
 		got[string(param.Payload)] = true
 		lock.Unlock()
 		time.Sleep(10 * time.Millisecond)
+		return nil
 	}
 	total := 10
 	wg.Add(total)
 
-	queueEntity := NewAsyncQueueEntity(
+	queueEntity := NewAsyncQueue(
 		ConfigName("TestQueueA"),
-		ConfigMaxQueueConcurrencyNum(10),
+		ConfigConcurrency(10),
 		ConfigRedisConn(client),
-		ConfigHandler(myHandler),
+		ConfigHandler(HandlerFunc(myHandler)),
 	)
 
 	// 初始化调用队列数据
-	err := queueEntity.InitQueue()
+	err := queueEntity.StartConsuming()
 	if err != nil {
-		t.Errorf("InitQueue err: %v", err)
+		t.Errorf("StartConsuming err: %v", err)
 		return
 	}
 
@@ -135,7 +137,7 @@ func TestTaskQueueEntity_Run(t *testing.T) {
 		// 推送消息
 		for i := 0; i < total; i++ {
 			data := fmt.Sprintf("{\"id\":%d}", i)
-			_ = queueEntity.Publish(Task{
+			_ = queueEntity.Publish(&TaskInfo{
 				Payload: []byte(data),
 			})
 			want[data] = true

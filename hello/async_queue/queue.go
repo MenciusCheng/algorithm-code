@@ -2,7 +2,7 @@ package async_queue
 
 import (
 	"errors"
-	"github.com/MenciusCheng/algorithm-code/utils"
+	"fmt"
 	"github.com/MenciusCheng/algorithm-code/utils/log"
 	"github.com/go-redis/redis"
 	"go.uber.org/zap"
@@ -12,161 +12,200 @@ import (
 
 // 队列参数结构体
 type AsyncQueue struct {
-	OneLevelName           string        // 一级名称
-	TwoLevelName           string        // 二级名称
-	ThreeLevelName         string        // 三级名称
-	MaxQueueConcurrencyNum int64         // 队列数
-	RedisConn              *redis.Client // Redis 连接
-	QueueKey               string        // 队列Key，根据一二三级名称计算
-	handlers               []Handler     // 消息处理方法
-	BatchSize              int64         // 一次取出处理的任务数，默认为10
+	// 队列公共参数
+	QueueName  string        // 队列名称
+	Priorities []int64       // 优先级配置
+	RedisConn  *redis.Client // Redis 连接
 
-	QueueName string // 队列名称
+	// 消费者参数
+	Handlers    []Handler // 任务处理方法
+	Concurrency int64     // 并发执行任务数
+	RetryMax    int64     // 最大重试次数
+	Timeout     int64     // 任务处理超时秒数
 
 	lock     sync.Mutex // protects the fields
 	consumed bool       // 是否已开启消费
 }
 
-// 初始化维度的队列名，按照配置生成队列数，对应按配置生成消费协程
-func (a *AsyncQueue) initQueueConcurrency() {
-	if a.QueueKey == "" {
-		a.QueueKey = GetQueueKey(a)
+func NewAsyncQueue(options ...OptionFunc) *AsyncQueue {
+	c := &AsyncQueue{}
+	for _, f := range options {
+		f(c)
 	}
-	if a.BatchSize == 0 {
-		a.BatchSize = DefaultBatchSize
+
+	c.initQueueConfig()
+	return c
+}
+
+// 初始化默认配置
+func (a *AsyncQueue) initQueueConfig() {
+	if len(a.Priorities) == 0 {
+		a.Priorities = GetDefaultPriorities()
+	}
+	if a.Concurrency == 0 {
+		a.Concurrency = DefaultConcurrency
+	}
+	if a.RetryMax == 0 {
+		a.RetryMax = DefaultRetryMax
+	}
+	if a.Timeout == 0 {
+		a.Timeout = DefaultTimeout
 	}
 }
 
-// 初始化调用队列数据
-func (a *AsyncQueue) InitQueue() error {
-	if a.MaxQueueConcurrencyNum <= 0 {
-		return errors.New("MaxQueueConcurrencyNum is zero")
+// 启动消费
+func (a *AsyncQueue) StartConsuming() error {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
+	if a.consumed {
+		return errors.New("multiple startConsuming not allowed")
 	}
-	// queueID 范围为 [1, MaxQueueConcurrencyNum]
-	for i := int64(1); i <= a.MaxQueueConcurrencyNum; i++ {
-		go func(queueID int64) {
-			a.consumeApi(queueID)
+	a.consumed = true
+
+	if a.Concurrency <= 0 {
+		return errors.New("concurrency is zero")
+	}
+
+	// TODO 启动守护协程
+
+	// 根据并发数启动消费者
+	for i := int64(0); i < a.Concurrency; i++ {
+		go func(consumerID int64) {
+			a.consumeApi(consumerID)
 		}(i)
 	}
 	return nil
 }
 
 // 发布任务
-func (a *AsyncQueue) Publish(task Task) error {
+func (a *AsyncQueue) Publish(task *TaskInfo) error {
+	// TODO 校验字段
+
 	now := time.Now().Unix()
 
-	msg := &TaskMessage{
-		ID:      utils.GetUUIDV4(),
-		Payload: task.Payload,
-	}
+	initTaskInfo(task, TaskTypeNormal)
 
-	var err error
-	if task.ProcessAt > now {
-		err = a.Schedule(msg, task.ProcessAt)
+	msg := TaskInfoToMessage(task)
+	if msg.ProcessAt > now {
+		if err := a.Schedule(msg); err != nil {
+			return fmt.Errorf("publish schedule failed: %w", err)
+		}
 	} else {
-		err = a.Pending(msg)
-	}
-	if err != nil {
-		return err
+		if err := a.Pending(msg); err != nil {
+			return fmt.Errorf("publish pending failed: %w", err)
+		}
 	}
 
 	return nil
 }
 
-// 发布任务
-func (a *AsyncQueue) PublishDAG(tasks []Task) error {
-	msgList := make([]*TaskMessage, 0, len(tasks))
+// 发布链表任务
+func (a *AsyncQueue) PublishList(tasks []*TaskInfo) error {
+	now := time.Now().Unix()
+
 	for i := 0; i < len(tasks); i++ {
-		msg := &TaskMessage{
-			ID:      utils.GetUUIDV4(),
-			Payload: tasks[i].Payload,
-			Type:    TaskTypeDAG,
-		}
+		initTaskInfo(tasks[i], TaskTypeDAG)
 		if i > 0 {
-			msg.PreTaskID = msgList[i-1].ID
-		}
-		msgList = append(msgList, msg)
-	}
-
-	// TODO 改成批量
-	for _, msg := range msgList {
-		err := a.Pending(msg)
-		if err != nil {
-			return err
+			tasks[i].PreTaskIDs = []string{tasks[i-1].ID}
 		}
 	}
 
+	for i := 0; i < len(tasks); i++ {
+		msg := TaskInfoToMessage(tasks[i])
+		if msg.ProcessAt > now {
+			if err := a.Schedule(msg); err != nil {
+				return fmt.Errorf("publishList schedule failed: %w", err)
+			}
+		} else {
+			if err := a.DAGing(msg); err != nil {
+				return fmt.Errorf("publishList waitpre failed: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// 发布DAG任务
+func (a *AsyncQueue) PublishDAG(tasks []TaskInfo) error {
 	return nil
 }
 
 func (a *AsyncQueue) AddHandler(f Handler) {
 	if f != nil {
-		a.handlers = append(a.handlers, f)
+		a.Handlers = append(a.Handlers, f)
 	}
 }
 
-func (a *AsyncQueue) consumeApi(queueID int64) {
+func (a *AsyncQueue) consumeApi(consumerID int64) {
 	tick := time.NewTicker(2 * time.Second)
 	for {
 		select {
 		case <-tick.C:
-			a.consumeTask(queueID)
+			a.consumeTask(consumerID)
 		}
 	}
 }
 
-func (a *AsyncQueue) consumeTask(queueID int64) {
-	queueKey := GetQueueConcurrencyKey(a.QueueKey, queueID)
-	//log.Debug("consumeTask start", zap.String("queueKey", queueKey))
+func (a *AsyncQueue) consumeTask(consumerID int64) {
+	var resp *TaskMessage
+	var err error
 
-	// 从队列读出数据
-	if !a.checkQueueID(queueID) {
-		log.Error("consumeTask checkQueueID error", zap.Int64("queueID", queueID), zap.String("queueKey", queueKey))
-		return
-	}
-	resp, err := a.Active()
-	if err != nil {
-		log.Error("consumeTask GetMessages error", zap.Error(err), zap.String("queueKey", queueKey))
-		return
-	}
-	if resp == nil {
-		//log.Debug("consumeTask end empty", zap.String("queueKey", queueKey))
-		return
-	}
-
-	if resp.Type == TaskTypeDAG && resp.PreTaskID != "" {
-		status, err := a.GetTaskStatus(resp.PreTaskID)
+	for _, priority := range a.Priorities {
+		// 从高优先级队列获取任务
+		resp, err = a.Active(priority)
 		if err != nil {
-			log.Error("consumeTask GetTaskStatus error", zap.Error(err), zap.String("queueKey", queueKey))
+			log.Error("consumeTask GetMessages error", zap.Error(err), zap.Int64("consumerID", consumerID))
 			return
 		}
-		if status != "success" {
-			a.Requeue(resp)
-			log.Debug("Requeue", zap.String("queueKey", queueKey), zap.Any("resp", resp))
-			return
+		if resp != nil {
+			break
 		}
 	}
 
-	param := HandlerParam{
-		Payload: resp.Payload,
+	if resp == nil {
+		//log.Debug("consumeTask end empty", zapInt64()g("consumerID", consumerID))
+		return
 	}
-	for _, handler := range a.handlers {
-		handler(&param)
+
+	//if resp.Type == TaskTypeDAG && resp.PreTaskID != "" {
+	//	status, err := a.GetTaskStatus(resp.PreTaskID)
+	//	if err != nil {
+	//		log.Error("consumeTask GetTaskStatus error", zap.Error(err), zap.Int64("consumerID", consumerID))
+	//		return
+	//	}
+	//	if status != "success" {
+	//		a.Requeue(resp)
+	//		log.Debug("Requeue", zap.Int64("consumerID", consumerID), zap.Any("resp", resp))
+	//		return
+	//	}
+	//}
+
+	task := &TaskInfo{
+		TaskMeta: TaskMeta{},
+		Payload:  resp.Payload,
+	}
+
+	for _, handler := range a.Handlers {
+		handler.ProcessTask(task)
 	}
 
 	a.Done(resp)
-	log.Debug("consumeTask end finish", zap.String("queueKey", queueKey))
+	log.Debug("consumeTask end finish", zap.Int64("consumerID", consumerID))
 }
 
-func (a *AsyncQueue) checkQueueID(queueID int64) bool {
-	if queueID <= 0 || queueID > a.MaxQueueConcurrencyNum {
-		return false
-	}
-	return true
+type Handler interface {
+	ProcessTask(*TaskInfo) error
 }
 
-type HandlerParam struct {
-	Payload []byte
-}
+// The HandlerFunc type is an adapter to allow the use of
+// ordinary functions as HTTP handlers. If f is a function
+// with the appropriate signature, HandlerFunc(f) is a
+// Handler that calls f.
+type HandlerFunc func(*TaskInfo) error
 
-type Handler func(*HandlerParam)
+// ProcessTask calls f(t)
+func (f HandlerFunc) ProcessTask(t *TaskInfo) error {
+	return f(t)
+}
