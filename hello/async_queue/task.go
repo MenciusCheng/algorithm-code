@@ -30,6 +30,12 @@ type TaskMeta struct {
 	// 前置任务ID列表
 	PreTaskIDs []string
 
+	// 入度，前置任务数
+	InDegree int64
+
+	// 后置任务ID列表
+	PostTaskIDs []string
+
 	// Retry 已重试次数
 	Retry int
 }
@@ -40,7 +46,9 @@ type TaskMessage struct {
 	// ID is a unique identifier for each task.
 	ID string
 
-	PreTaskID string
+	PreTaskIDs string
+
+	PostTaskIDs string
 
 	ProcessAt int64
 
@@ -49,6 +57,9 @@ type TaskMessage struct {
 
 	// 优先级
 	Priority int64
+
+	// 入度
+	InDegree int64
 
 	// Payload holds data needed to process the task.
 	Payload []byte
@@ -119,13 +130,18 @@ func initTaskInfo(task *TaskInfo, taskType string) {
 
 func TaskInfoToMessage(task *TaskInfo) *TaskMessage {
 	msg := &TaskMessage{
-		ID:       task.ID,
-		Type:     task.Type,
-		Priority: task.Priority,
-		Payload:  task.Payload,
+		ID:        task.ID,
+		Type:      task.Type,
+		Priority:  task.Priority,
+		Payload:   task.Payload,
+		ProcessAt: task.ProcessAt,
+		InDegree:  task.InDegree,
 	}
 	if len(task.PreTaskIDs) > 0 {
-		msg.PreTaskID = strings.Join(task.PreTaskIDs, ",")
+		msg.PreTaskIDs = strings.Join(task.PreTaskIDs, ",")
+	}
+	if len(task.PostTaskIDs) > 0 {
+		msg.PostTaskIDs = strings.Join(task.PostTaskIDs, ",")
 	}
 	return msg
 }

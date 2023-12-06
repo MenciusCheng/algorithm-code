@@ -23,6 +23,7 @@ type AsyncQueue struct {
 	RetryMax    int64     // 最大重试次数
 	Timeout     int64     // 任务处理超时秒数
 
+	cache    *Cache     // Redis 管理任务和队列
 	lock     sync.Mutex // protects the fields
 	consumed bool       // 是否已开启消费
 }
@@ -45,12 +46,10 @@ func (a *AsyncQueue) initQueueConfig() {
 	if a.Concurrency == 0 {
 		a.Concurrency = DefaultConcurrency
 	}
-	if a.RetryMax == 0 {
-		a.RetryMax = DefaultRetryMax
-	}
 	if a.Timeout == 0 {
 		a.Timeout = DefaultTimeout
 	}
+	a.cache = NewCache(a.QueueName, a.RedisConn)
 }
 
 // 启动消费
@@ -75,6 +74,16 @@ func (a *AsyncQueue) StartConsuming() error {
 			a.consumeApi(consumerID)
 		}(i)
 	}
+
+	// 轮询到达执行时间的延时队列
+	go func() {
+		a.forwardAll()
+	}()
+
+	go func() {
+		a.dagForwardAll()
+	}()
+
 	return nil
 }
 
@@ -88,11 +97,11 @@ func (a *AsyncQueue) Publish(task *TaskInfo) error {
 
 	msg := TaskInfoToMessage(task)
 	if msg.ProcessAt > now {
-		if err := a.Schedule(msg); err != nil {
+		if err := a.cache.Schedule(msg); err != nil {
 			return fmt.Errorf("publish schedule failed: %w", err)
 		}
 	} else {
-		if err := a.Pending(msg); err != nil {
+		if err := a.cache.Pending(msg); err != nil {
 			return fmt.Errorf("publish pending failed: %w", err)
 		}
 	}
@@ -102,23 +111,32 @@ func (a *AsyncQueue) Publish(task *TaskInfo) error {
 
 // 发布链表任务
 func (a *AsyncQueue) PublishList(tasks []*TaskInfo) error {
+	// TODO 所有任务的优先级必须一致
+
 	now := time.Now().Unix()
 
 	for i := 0; i < len(tasks); i++ {
 		initTaskInfo(tasks[i], TaskTypeDAG)
+	}
+
+	for i := 0; i < len(tasks); i++ {
 		if i > 0 {
 			tasks[i].PreTaskIDs = []string{tasks[i-1].ID}
+			tasks[i].InDegree = int64(len(tasks[i].PreTaskIDs))
+		}
+		if i < len(tasks)-1 {
+			tasks[i].PostTaskIDs = []string{tasks[i+1].ID}
 		}
 	}
 
 	for i := 0; i < len(tasks); i++ {
 		msg := TaskInfoToMessage(tasks[i])
 		if msg.ProcessAt > now {
-			if err := a.Schedule(msg); err != nil {
+			if err := a.cache.Schedule(msg); err != nil {
 				return fmt.Errorf("publishList schedule failed: %w", err)
 			}
 		} else {
-			if err := a.DAGing(msg); err != nil {
+			if err := a.cache.DAGing(msg); err != nil {
 				return fmt.Errorf("publishList waitpre failed: %w", err)
 			}
 		}
@@ -139,7 +157,7 @@ func (a *AsyncQueue) AddHandler(f Handler) {
 }
 
 func (a *AsyncQueue) consumeApi(consumerID int64) {
-	tick := time.NewTicker(2 * time.Second)
+	tick := time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-tick.C:
@@ -154,7 +172,7 @@ func (a *AsyncQueue) consumeTask(consumerID int64) {
 
 	for _, priority := range a.Priorities {
 		// 从高优先级队列获取任务
-		resp, err = a.Active(priority)
+		resp, err = a.cache.Active(priority)
 		if err != nil {
 			log.Error("consumeTask GetMessages error", zap.Error(err), zap.Int64("consumerID", consumerID))
 			return
@@ -169,8 +187,8 @@ func (a *AsyncQueue) consumeTask(consumerID int64) {
 		return
 	}
 
-	//if resp.Type == TaskTypeDAG && resp.PreTaskID != "" {
-	//	status, err := a.GetTaskStatus(resp.PreTaskID)
+	//if resp.Type == TaskTypeDAG && resp.PreTaskIDs != "" {
+	//	status, err := a.GetTaskStatus(resp.PreTaskIDs)
 	//	if err != nil {
 	//		log.Error("consumeTask GetTaskStatus error", zap.Error(err), zap.Int64("consumerID", consumerID))
 	//		return
@@ -191,8 +209,36 @@ func (a *AsyncQueue) consumeTask(consumerID int64) {
 		handler.ProcessTask(task)
 	}
 
-	a.Done(resp)
+	err = a.cache.Success(resp)
+	if err != nil {
+		log.Error("Success err", zap.Error(err))
+		return
+	}
 	log.Debug("consumeTask end finish", zap.Int64("consumerID", consumerID))
+}
+
+func (a *AsyncQueue) forwardAll() {
+	tick := time.NewTicker(1 * time.Second)
+	for {
+		select {
+		case <-tick.C:
+			for _, priority := range a.Priorities {
+				a.cache.Forward(priority)
+			}
+		}
+	}
+}
+
+func (a *AsyncQueue) dagForwardAll() {
+	tick := time.NewTicker(1 * time.Second)
+	for {
+		select {
+		case <-tick.C:
+			for _, priority := range a.Priorities {
+				a.cache.DAGForward(priority)
+			}
+		}
+	}
 }
 
 type Handler interface {

@@ -62,13 +62,19 @@ func TestAsyncQueue_Server(t *testing.T) {
 	time.Sleep(60 * time.Second)
 }
 
-func TestAsyncQueue_DAG(t *testing.T) {
+func TestAsyncQueue_Schedule(t *testing.T) {
 	client := InitClient()
 
+	wg := &sync.WaitGroup{}
 	myHandler := func(param *TaskInfo) error {
+		defer func() {
+			wg.Done()
+		}()
 		log.Println("处理任务", "data", string(param.Payload))
 		return nil
 	}
+	total := 20
+	wg.Add(total)
 
 	queueEntity := NewAsyncQueue(
 		ConfigName("TestQueueA"),
@@ -77,15 +83,17 @@ func TestAsyncQueue_DAG(t *testing.T) {
 		ConfigHandler(HandlerFunc(myHandler)),
 	)
 
-	total := 10
-	tasks := make([]TaskInfo, 0, total)
+	processAt := time.Now().Unix()
 	for i := 0; i < total; i++ {
 		data := fmt.Sprintf("{\"id\":%d}", i)
-		tasks = append(tasks, TaskInfo{
+		queueEntity.Publish(&TaskInfo{
+			TaskMeta: TaskMeta{
+				ProcessAt: processAt,
+			},
 			Payload: []byte(data),
 		})
+		processAt += 2
 	}
-	queueEntity.PublishDAG(tasks)
 	time.Sleep(1 * time.Second)
 
 	// 初始化调用队列数据
@@ -95,7 +103,52 @@ func TestAsyncQueue_DAG(t *testing.T) {
 		return
 	}
 
-	time.Sleep(60 * time.Second)
+	wg.Wait()
+	log.Println("finish")
+	time.Sleep(2 * time.Second)
+}
+
+func TestAsyncQueue_List(t *testing.T) {
+	client := InitClient()
+
+	wg := &sync.WaitGroup{}
+	myHandler := func(param *TaskInfo) error {
+		defer func() {
+			wg.Done()
+		}()
+		log.Println("处理任务", "data", string(param.Payload))
+		return nil
+	}
+	total := 10
+	wg.Add(total)
+
+	queueEntity := NewAsyncQueue(
+		ConfigName("TestQueueA"),
+		ConfigConcurrency(3),
+		ConfigRedisConn(client),
+		ConfigHandler(HandlerFunc(myHandler)),
+	)
+
+	tasks := make([]*TaskInfo, 0, total)
+	for i := 0; i < total; i++ {
+		data := fmt.Sprintf("{\"id\":%d}", i)
+		tasks = append(tasks, &TaskInfo{
+			Payload: []byte(data),
+		})
+	}
+	queueEntity.PublishList(tasks)
+	time.Sleep(1 * time.Second)
+
+	// 初始化调用队列数据
+	err := queueEntity.StartConsuming()
+	if err != nil {
+		t.Errorf("StartConsuming err: %v", err)
+		return
+	}
+
+	wg.Wait()
+	log.Println("finish")
+	time.Sleep(2 * time.Second)
 }
 
 func TestTaskQueueEntity_Run(t *testing.T) {
