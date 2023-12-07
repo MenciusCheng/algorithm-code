@@ -10,49 +10,153 @@ import (
 	"time"
 )
 
-// 队列参数结构体
+// AsyncQueue 异步队列结构体
 type AsyncQueue struct {
 	// 队列公共参数
-	QueueName  string        // 队列名称
-	Priorities []int64       // 优先级配置
+	QueueName  string        // 唯一队列名称
 	RedisConn  *redis.Client // Redis 连接
+	Priorities []int64       // 优先级配置
 
 	// 消费者参数
-	Handlers    []Handler // 任务处理方法
-	Concurrency int64     // 并发执行任务数
-	RetryMax    int64     // 最大重试次数
-	Timeout     int64     // 任务处理超时秒数
+	Handlers         []Handler // 任务处理方法
+	Concurrency      int64     // 并发执行任务数
+	RetryMax         int64     // 最大重试次数
+	Timeout          int64     // 任务处理超时秒数，超过该时间则失败重试
+	Retention        int64     // 任务完成后状态保留秒数
+	FailureRetention int64     // 任务失败后状态保留秒数
+	Deadline         int64     // 任务最大期限秒数，保留字段暂无使用
 
-	cache    *Cache     // Redis 管理任务和队列
+	Cache    *Cache     // Redis 管理任务和队列
 	lock     sync.Mutex // protects the fields
 	consumed bool       // 是否已开启消费
 }
 
-func NewAsyncQueue(options ...OptionFunc) *AsyncQueue {
-	c := &AsyncQueue{}
+func NewAsyncQueue(queueName string, redisConn *redis.Client, options ...OptionFunc) *AsyncQueue {
+	c := &AsyncQueue{
+		QueueName:        queueName,
+		RedisConn:        redisConn,
+		Priorities:       GetDefaultPriorities(),
+		Concurrency:      DefaultConcurrency,
+		Timeout:          DefaultTimeout,
+		Retention:        DefaultRetention,
+		FailureRetention: DefaultFailureRetention,
+	}
 	for _, f := range options {
 		f(c)
 	}
 
-	c.initQueueConfig()
+	c.Cache = NewCache(queueName, redisConn)
+	c.Cache.Retention = c.Retention
+	c.Cache.FailureRetention = c.FailureRetention
+
 	return c
 }
 
-// 初始化默认配置
-func (a *AsyncQueue) initQueueConfig() {
-	if len(a.Priorities) == 0 {
-		a.Priorities = GetDefaultPriorities()
+// Publish 发布普通任务
+func (a *AsyncQueue) Publish(payload []byte, options ...OptionTaskFunc) (*TaskInfo, error) {
+	now := time.Now().Unix()
+	task := NewTaskInfo(payload, TaskTypeNormal, options...)
+
+	// 校验优先级是否在配置内
+	if !a.IsValidPriority(task.Priority) {
+		return nil, fmt.Errorf("publish invalid priority:%d", task.Priority)
 	}
-	if a.Concurrency == 0 {
-		a.Concurrency = DefaultConcurrency
+
+	msg := TaskInfoToMessage(task)
+	if msg.ProcessAt > now {
+		if err := a.Cache.Schedule(msg); err != nil {
+			return nil, fmt.Errorf("publish schedule failed: %w", err)
+		}
+	} else {
+		if err := a.Cache.Pending(msg); err != nil {
+			return nil, fmt.Errorf("publish pending failed: %w", err)
+		}
 	}
-	if a.Timeout == 0 {
-		a.Timeout = DefaultTimeout
-	}
-	a.cache = NewCache(a.QueueName, a.RedisConn)
+
+	return task, nil
 }
 
-// 启动消费
+// PublishListDAG 发布单链表关系的DAG任务
+func (a *AsyncQueue) PublishListDAG(payloads [][]byte, options ...OptionTaskFunc) ([]*TaskInfo, error) {
+	// 构建任务链表
+	tasks := make([]*TaskInfo, 0, len(payloads))
+	for _, payload := range payloads {
+		task := NewTaskInfo(payload, TaskTypeDAG, options...)
+		tasks = append(tasks, task)
+	}
+	for i := 1; i < len(tasks); i++ {
+		tasks[i].PreTaskIDs = []string{tasks[i-1].ID}
+		tasks[i].InDegree = len(tasks[i].PreTaskIDs)
+		tasks[i-1].PostTaskIDs = []string{tasks[i].ID}
+	}
+
+	// check
+	taskIDMap := make(map[string]bool)
+	for _, task := range tasks {
+		if taskIDMap[task.ID] {
+			return nil, fmt.Errorf("publishListDAG id conflict:%s", task.ID)
+		}
+		taskIDMap[task.ID] = true
+
+		// 校验优先级是否在配置内
+		if !a.IsValidPriority(task.Priority) {
+			return nil, fmt.Errorf("publishListDAG invalid priority:%d", task.Priority)
+		}
+	}
+
+	// 构建并发布DAG任务
+	dag := NewDAG()
+	for i := 0; i < len(tasks); i++ {
+		dag.AddVertex(tasks[i].ID, tasks[i])
+	}
+	for i := 1; i < len(tasks); i++ {
+		dag.AddEdge(tasks[i-1].ID, tasks[i].ID)
+	}
+	publishTasks, err := a.publishDAG(dag)
+	if err != nil {
+		return nil, fmt.Errorf("publishDAG failed:%w", err)
+	}
+
+	return publishTasks, nil
+}
+
+// publishDAG 发布DAG任务
+func (a *AsyncQueue) publishDAG(dag *DAG) ([]*TaskInfo, error) {
+	if dag == nil || len(dag.Vertexes) == 0 {
+		return nil, errors.New("dag task is empty")
+	}
+	if !dag.CanFinish() {
+		return nil, errors.New("invalid dag task loop")
+	}
+
+	vertices := dag.BFS()
+	tasks := make([]*TaskInfo, 0, len(vertices))
+	for _, vertex := range vertices {
+		task, ok := vertex.Value.(*TaskInfo)
+		if !ok {
+			return nil, fmt.Errorf("invalid vertex value")
+		}
+		tasks = append(tasks, task)
+	}
+
+	now := time.Now().Unix()
+	for _, task := range tasks {
+		msg := TaskInfoToMessage(task)
+		if msg.ProcessAt > now {
+			if err := a.Cache.Schedule(msg); err != nil {
+				return nil, fmt.Errorf("publishDAG schedule failed: %w", err)
+			}
+		} else {
+			if err := a.Cache.DAGing(msg); err != nil {
+				return nil, fmt.Errorf("publishDAG daging failed: %w", err)
+			}
+		}
+	}
+
+	return tasks, nil
+}
+
+// StartConsuming 启动消费
 func (a *AsyncQueue) StartConsuming() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -66,8 +170,6 @@ func (a *AsyncQueue) StartConsuming() error {
 		return errors.New("concurrency is zero")
 	}
 
-	// TODO 启动守护协程
-
 	// 根据并发数启动消费者
 	for i := int64(0); i < a.Concurrency; i++ {
 		go func(consumerID int64) {
@@ -77,6 +179,7 @@ func (a *AsyncQueue) StartConsuming() error {
 
 	// 轮询到达执行时间的延时队列
 	go func() {
+		// TODO panic 检查
 		a.forwardAll()
 	}()
 
@@ -87,67 +190,14 @@ func (a *AsyncQueue) StartConsuming() error {
 	return nil
 }
 
-// 发布任务
-func (a *AsyncQueue) Publish(task *TaskInfo) error {
-	// TODO 校验字段
-
-	now := time.Now().Unix()
-
-	initTaskInfo(task, TaskTypeNormal)
-
-	msg := TaskInfoToMessage(task)
-	if msg.ProcessAt > now {
-		if err := a.cache.Schedule(msg); err != nil {
-			return fmt.Errorf("publish schedule failed: %w", err)
-		}
-	} else {
-		if err := a.cache.Pending(msg); err != nil {
-			return fmt.Errorf("publish pending failed: %w", err)
+// 校验优先级是否在配置内
+func (a *AsyncQueue) IsValidPriority(priority int64) bool {
+	for _, item := range a.Priorities {
+		if item == priority {
+			return true
 		}
 	}
-
-	return nil
-}
-
-// 发布链表任务
-func (a *AsyncQueue) PublishList(tasks []*TaskInfo) error {
-	// TODO 所有任务的优先级必须一致
-
-	now := time.Now().Unix()
-
-	for i := 0; i < len(tasks); i++ {
-		initTaskInfo(tasks[i], TaskTypeDAG)
-	}
-
-	for i := 0; i < len(tasks); i++ {
-		if i > 0 {
-			tasks[i].PreTaskIDs = []string{tasks[i-1].ID}
-			tasks[i].InDegree = int64(len(tasks[i].PreTaskIDs))
-		}
-		if i < len(tasks)-1 {
-			tasks[i].PostTaskIDs = []string{tasks[i+1].ID}
-		}
-	}
-
-	for i := 0; i < len(tasks); i++ {
-		msg := TaskInfoToMessage(tasks[i])
-		if msg.ProcessAt > now {
-			if err := a.cache.Schedule(msg); err != nil {
-				return fmt.Errorf("publishList schedule failed: %w", err)
-			}
-		} else {
-			if err := a.cache.DAGing(msg); err != nil {
-				return fmt.Errorf("publishList waitpre failed: %w", err)
-			}
-		}
-	}
-
-	return nil
-}
-
-// 发布DAG任务
-func (a *AsyncQueue) PublishDAG(tasks []TaskInfo) error {
-	return nil
+	return false
 }
 
 func (a *AsyncQueue) AddHandler(f Handler) {
@@ -171,8 +221,8 @@ func (a *AsyncQueue) consumeTask(consumerID int64) {
 	var err error
 
 	for _, priority := range a.Priorities {
-		// 从高优先级队列获取任务
-		resp, err = a.cache.Active(priority)
+		// 先从高优先级队列获取任务
+		resp, err = a.Cache.Active(priority)
 		if err != nil {
 			log.Error("consumeTask GetMessages error", zap.Error(err), zap.Int64("consumerID", consumerID))
 			return
@@ -181,35 +231,17 @@ func (a *AsyncQueue) consumeTask(consumerID int64) {
 			break
 		}
 	}
-
+	// 无任务消息，直接返回
 	if resp == nil {
-		//log.Debug("consumeTask end empty", zapInt64()g("consumerID", consumerID))
 		return
 	}
 
-	//if resp.Type == TaskTypeDAG && resp.PreTaskIDs != "" {
-	//	status, err := a.GetTaskStatus(resp.PreTaskIDs)
-	//	if err != nil {
-	//		log.Error("consumeTask GetTaskStatus error", zap.Error(err), zap.Int64("consumerID", consumerID))
-	//		return
-	//	}
-	//	if status != "success" {
-	//		a.Requeue(resp)
-	//		log.Debug("Requeue", zap.Int64("consumerID", consumerID), zap.Any("resp", resp))
-	//		return
-	//	}
-	//}
-
-	task := &TaskInfo{
-		TaskMeta: TaskMeta{},
-		Payload:  resp.Payload,
-	}
-
+	task := TaskMessageToInfo(resp)
 	for _, handler := range a.Handlers {
 		handler.ProcessTask(task)
 	}
 
-	err = a.cache.Success(resp)
+	err = a.Cache.Success(resp)
 	if err != nil {
 		log.Error("Success err", zap.Error(err))
 		return
@@ -223,7 +255,7 @@ func (a *AsyncQueue) forwardAll() {
 		select {
 		case <-tick.C:
 			for _, priority := range a.Priorities {
-				a.cache.Forward(priority)
+				a.Cache.Forward(priority)
 			}
 		}
 	}
@@ -235,7 +267,7 @@ func (a *AsyncQueue) dagForwardAll() {
 		select {
 		case <-tick.C:
 			for _, priority := range a.Priorities {
-				a.cache.DAGForward(priority)
+				a.Cache.DAGForward(priority)
 			}
 		}
 	}

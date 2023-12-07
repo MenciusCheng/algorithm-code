@@ -9,8 +9,10 @@ import (
 )
 
 type Cache struct {
-	QueueName string        // 队列名称
-	RedisConn *redis.Client // Redis 连接
+	QueueName        string        // 队列名称
+	RedisConn        *redis.Client // Redis 连接
+	Retention        int64         // 任务完成后状态保留秒数
+	FailureRetention int64         // 任务失败后状态保留秒数
 }
 
 func NewCache(queueName string, redisConn *redis.Client) *Cache {
@@ -23,13 +25,15 @@ func NewCache(queueName string, redisConn *redis.Client) *Cache {
 // KEYS[1] -> AsyncQueue:{<qname>}:task:<task_id>
 // KEYS[2] -> AsyncQueue:{<qname>}:p:<priority>:schedule
 // -------
-// ARGV[1] -> task Payload
-// ARGV[2] -> task ID
-// ARGV[3] -> current timestamp seconds
+// ARGV[1] -> current timestamp seconds
+// ARGV[2] -> task Payload
+// ARGV[3] -> task ID
 // ARGV[4] -> task Type
-// ARGV[5] -> task PreTaskIDs
-// ARGV[6] -> task Priority
-// ARGV[7] -> task ProcessAt in Unix time
+// ARGV[5] -> task Priority
+// ARGV[6] -> task PreTaskIDs
+// ARGV[7] -> task InDegree
+// ARGV[8] -> task PostTaskIDs
+// ARGV[9] -> task ProcessAt in Unix time
 //
 // Output:
 // Returns 1 if successfully enqueued
@@ -39,33 +43,35 @@ if redis.call("EXISTS", KEYS[1]) == 1 then
 	return 0
 end
 redis.call("HSET", KEYS[1],
-           "msg", ARGV[1],
-           "id", ARGV[2],
            "state", "schedule",
-           "schedule_since", ARGV[3],
+           "schedule_since", ARGV[1],
+           "payload", ARGV[2],
+           "id", ARGV[3],
            "type", ARGV[4],
-           "preTaskIDs", ARGV[5],
-           "priority", ARGV[6],
+           "priority", ARGV[5],
+           "preTaskIDs", ARGV[6],
+           "inDegree", ARGV[7],
            "postTaskIDs", ARGV[8])
-redis.call("ZADD", KEYS[2], ARGV[7], ARGV[2])
+redis.call("ZADD", KEYS[2], ARGV[9], ARGV[3])
 return 1
 `)
 
-// Schedule adds the task to the schedule set to be processed in the future.
+// Schedule 添加任务到延时队列
 func (c *Cache) Schedule(msg *TaskMessage) error {
 	keys := []string{
 		c.TaskKey(msg.ID),
 		c.ScheduleKey(msg.Priority),
 	}
 	argv := []interface{}{
+		time.Now().Unix(),
 		msg.Payload,
 		msg.ID,
-		time.Now().Unix(),
 		msg.Type,
-		msg.PreTaskIDs,
 		msg.Priority,
-		msg.ProcessAt,
+		msg.PreTaskIDs,
+		msg.InDegree,
 		msg.PostTaskIDs,
+		msg.ProcessAt,
 	}
 	n, err := scheduleCmd.Run(c.RedisConn, keys, argv...).Int64()
 	if err != nil {
@@ -77,18 +83,18 @@ func (c *Cache) Schedule(msg *TaskMessage) error {
 	return nil
 }
 
-// dagingCmd daging a given task message.
-//
 // Input:
 // KEYS[1] -> AsyncQueue:{<qname>}:task:<task_id>
 // KEYS[2] -> AsyncQueue:{<qname>}:p:<priority>:daging
 // --
-// ARGV[1] -> task Payload
-// ARGV[2] -> task ID
-// ARGV[3] -> current timestamp seconds
+// ARGV[1] -> current timestamp seconds
+// ARGV[2] -> task Payload
+// ARGV[3] -> task ID
 // ARGV[4] -> task Type
-// ARGV[5] -> task PreTaskIDs
-// ARGV[6] -> task Priority
+// ARGV[5] -> task Priority
+// ARGV[6] -> task PreTaskIDs
+// ARGV[7] -> task InDegree
+// ARGV[8] -> task PostTaskIDs
 //
 // Output:
 // Returns 1 if successfully enqueued
@@ -98,32 +104,32 @@ if redis.call("EXISTS", KEYS[1]) == 1 then
 	return 0
 end
 redis.call("HSET", KEYS[1],
-           "msg", ARGV[1],
-           "id", ARGV[2],
            "state", "daging",
-           "daging_since", ARGV[3],
+           "daging_since", ARGV[1],
+           "payload", ARGV[2],
+           "id", ARGV[3],
            "type", ARGV[4],
-           "preTaskIDs", ARGV[5],
-           "priority", ARGV[6],
-           "indegree", ARGV[7],
+           "priority", ARGV[5],
+           "preTaskIDs", ARGV[6],
+           "inDegree", ARGV[7],
            "postTaskIDs", ARGV[8])
-redis.call("ZADD", KEYS[2], ARGV[7], ARGV[2])
+redis.call("ZADD", KEYS[2], ARGV[7], ARGV[3])
 return 1
 `)
 
-// DAGing adds the given task to the daging list of the queue.
+// DAGing 添加任务到DAG队列
 func (c *Cache) DAGing(msg *TaskMessage) error {
 	keys := []string{
 		c.TaskKey(msg.ID),
 		c.DAGingKey(msg.Priority),
 	}
 	argv := []interface{}{
+		time.Now().Unix(),
 		msg.Payload,
 		msg.ID,
-		time.Now().Unix(),
 		msg.Type,
-		msg.PreTaskIDs,
 		msg.Priority,
+		msg.PreTaskIDs,
 		msg.InDegree,
 		msg.PostTaskIDs,
 	}
@@ -137,18 +143,15 @@ func (c *Cache) DAGing(msg *TaskMessage) error {
 	return nil
 }
 
-// pendingCmd pending a given task message.
-//
 // Input:
 // KEYS[1] -> AsyncQueue:{<qname>}:task:<task_id>
 // KEYS[2] -> AsyncQueue:{<qname>}:p:<priority>:pending
 // --
-// ARGV[1] -> task Payload
-// ARGV[2] -> task ID
-// ARGV[3] -> current timestamp seconds
+// ARGV[1] -> current timestamp seconds
+// ARGV[2] -> task Payload
+// ARGV[3] -> task ID
 // ARGV[4] -> task Type
-// ARGV[5] -> task PreTaskIDs
-// ARGV[6] -> task Priority
+// ARGV[5] -> task Priority
 //
 // Output:
 // Returns 1 if successfully enqueued
@@ -158,32 +161,28 @@ if redis.call("EXISTS", KEYS[1]) == 1 then
 	return 0
 end
 redis.call("HSET", KEYS[1],
-           "msg", ARGV[1],
-           "id", ARGV[2],
            "state", "pending",
-           "pending_since", ARGV[3],
+           "pending_since", ARGV[1],
+           "payload", ARGV[2],
+           "id", ARGV[3],
            "type", ARGV[4],
-           "preTaskIDs", ARGV[5],
-           "priority", ARGV[6],
-           "postTaskIDs", ARGV[7])
-redis.call("LPUSH", KEYS[2], ARGV[2])
+           "priority", ARGV[5])
+redis.call("LPUSH", KEYS[2], ARGV[3])
 return 1
 `)
 
-// Pending adds the given task to the pending list of the queue.
+// Pending 添加任务到挂起队列
 func (c *Cache) Pending(msg *TaskMessage) error {
 	keys := []string{
 		c.TaskKey(msg.ID),
 		c.PendingKey(msg.Priority),
 	}
 	argv := []interface{}{
+		time.Now().Unix(),
 		msg.Payload,
 		msg.ID,
-		time.Now().Unix(),
 		msg.Type,
-		msg.PreTaskIDs,
 		msg.Priority,
-		msg.PostTaskIDs,
 	}
 	n, err := pendingCmd.Run(c.RedisConn, keys, argv...).Int64()
 	if err != nil {
@@ -197,34 +196,26 @@ func (c *Cache) Pending(msg *TaskMessage) error {
 
 // Input:
 // KEYS[1] -> AsyncQueue:{<qname>}:p:<priority>:pending
-// KEYS[2] -> AsyncQueue:{<qname>}:paused
-// KEYS[3] -> AsyncQueue:{<qname>}:Active
-// KEYS[4] -> AsyncQueue:{<qname>}:lease
+// KEYS[2] -> AsyncQueue:{<qname>}:active
 // --
-// ARGV[1] -> initial lease expiration Unix time
-// ARGV[2] -> task key prefix
+// ARGV[1] -> task key prefix
+// ARGV[2] -> current timestamp seconds
 //
 // Output:
 // Returns nil if no processable task is found in the given queue.
-// Returns an encoded TaskMessage.
-//
-// Note: activeCmd checks whether a queue is paused first, before
-// calling RPOPLPUSH to pop a task from the queue.
+// Returns Hash
 var activeCmd = redis.NewScript(`
 local id = redis.call("RPOP", KEYS[1])
 if id then
 	redis.call("ZADD", KEYS[2], ARGV[2], id)
 	local key = ARGV[1] .. id
 	redis.call("HSET", key, "state", "active")
-	redis.call("HDEL", key, "pending_since")
+	redis.call("HSET", key, "active_since", ARGV[2])
 	return redis.call("HGETALL", key)
 end
 return nil`)
 
-// Active queries given queues in order and pops a task message
-// off a queue if one exists and returns the message and its lease expiration time.
-// Dequeue skips a queue if the queue is paused.
-// If all queues are empty, ErrNoProcessableTask error is returned.
+// Active 从挂起队列获取任务，并添加到处理队列
 func (c *Cache) Active(priority int64) (msg *TaskMessage, err error) {
 	keys := []string{
 		c.PendingKey(priority),
@@ -241,6 +232,7 @@ func (c *Cache) Active(priority int64) (msg *TaskMessage, err error) {
 		return nil, err
 	}
 
+	// Redis Hash 转为 Map
 	resMap := make(map[string]string)
 	resArr, ok := res.([]interface{})
 	if !ok {
@@ -259,11 +251,11 @@ func (c *Cache) Active(priority int64) (msg *TaskMessage, err error) {
 	}
 
 	msg = &TaskMessage{
+		Payload:     []byte(resMap["payload"]),
 		ID:          resMap["id"],
+		Type:        resMap["type"],
 		PreTaskIDs:  resMap["preTaskIDs"],
 		PostTaskIDs: resMap["postTaskIDs"],
-		Type:        resMap["type"],
-		Payload:     []byte(resMap["msg"]),
 	}
 	if len(resMap["priority"]) > 0 {
 		msg.Priority, _ = strconv.ParseInt(resMap["priority"], 10, 64)
@@ -271,78 +263,46 @@ func (c *Cache) Active(priority int64) (msg *TaskMessage, err error) {
 	if len(resMap["retry"]) > 0 {
 		msg.Retry, _ = strconv.Atoi(resMap["retry"])
 	}
-	if len(resMap["indegree"]) > 0 {
-		msg.InDegree, _ = strconv.ParseInt(resMap["indegree"], 10, 64)
+	if len(resMap["inDegree"]) > 0 {
+		msg.InDegree, _ = strconv.Atoi(resMap["inDegree"])
 	}
 
 	return msg, nil
 }
 
 // KEYS[1] -> AsyncQueue:{<qname>}:active
-// KEYS[2] -> AsyncQueue:{<qname>}:lease
-// KEYS[3] -> AsyncQueue:{<qname>}:task:<task_id>
-// KEYS[4] -> AsyncQueue:{<qname>}:processed:<yyyy-mm-dd>
-// KEYS[5] -> AsyncQueue:{<qname>}:processed
+// KEYS[2] -> AsyncQueue:{<qname>}:task:<task_id>
+// KEYS[3] -> AsyncQueue:{<qname>}:p:<priority>:daging
 // -------
 // ARGV[1] -> task ID
-// ARGV[2] -> stats expiration timestamp
-// ARGV[3] -> max int64 value
-var doneCmd = redis.NewScript(`
-if redis.call("LREM", KEYS[1], 0, ARGV[1]) == 0 then
-  return redis.error_reply("NOT FOUND")
-end
-redis.call("HSET", KEYS[2], "state", "success")
-redis.call("EXPIRE", KEYS[2], ARGV[2])
-return redis.status_reply("OK")
-`)
-
-/*
-if redis.call("DEL", KEYS[2]) == 0 then
-  return redis.error_reply("NOT FOUND")
-end
-*/
-
-// Done removes the task from active queue and deletes the task.
-// It removes a uniqueness lock acquired by the task, if any.
-func (c *Cache) Done(msg *TaskMessage) error {
-	keys := []string{
-		c.ActiveKey(),
-		c.TaskKey(msg.ID),
-	}
-	argv := []interface{}{
-		msg.ID,
-		60 * 10,
-	}
-	return doneCmd.Run(c.RedisConn, keys, argv...).Err()
-}
-
-// KEYS[1] -> AsyncQueue:{<qname>}:active
-// KEYS[2] -> AsyncQueue:{<qname>}:lease
-// KEYS[3] -> AsyncQueue:{<qname>}:task:<task_id>
-// KEYS[4] -> AsyncQueue:{<qname>}:processed:<yyyy-mm-dd>
-// KEYS[5] -> AsyncQueue:{<qname>}:processed
-// -------
-// ARGV[1] -> task ID
-// ARGV[2] -> stats expiration timestamp
-// ARGV[3] -> max int64 value
+// ARGV[2] -> retention seconds
+// ARGV[3] -> task Type
+// ARGV[4] -> task PostTaskIDs
+// ARGV[5] -> task key prefix
+// ARGV[6] -> current timestamp seconds
 var successCmd = redis.NewScript(`
 if redis.call("ZREM", KEYS[1], ARGV[1]) == 0 then
-  return redis.error_reply("NOT FOUND")
+	return redis.error_reply("NOT FOUND")
 end
-redis.call("HSET", KEYS[2], "state", "success")
+if tonumber(ARGV[2]) > 0 then
+	redis.call("HSET", KEYS[2], "state", "success")
+	redis.call("HSET", KEYS[2], "success_since", ARGV[6])
+end
 redis.call("EXPIRE", KEYS[2], ARGV[2])
 if ARGV[3] == "dag" and ARGV[4] ~= "" then
-	for postID in (ARGV[4] .. ","):gmatch("(.-)" .. ",") do
-		local key = ARGV[5] .. postID
-		local indegree = redis.call("HINCRBY", key, "indegree", -1)
-		redis.call("ZADD", KEYS[3], indegree, postID)
+	for taskID in (ARGV[4] .. ","):gmatch("(.-)" .. ",") do
+		if redis.call("ZREM", KEYS[3], taskID) == 1 then
+			local key = ARGV[5] .. taskID
+			local inDegree = redis.call("HINCRBY", key, "inDegree", -1)
+			redis.call("ZADD", KEYS[3], inDegree, taskID)
+		end
 	end
 end
 return redis.status_reply("OK")
 `)
 
-// Success removes the task from active queue and deletes the task.
-// It removes a uniqueness lock acquired by the task, if any.
+// Success 任务处理成功，从处理队列中移除任务
+// 如果是DAG任务，则对子任务的入度减少1
 func (c *Cache) Success(msg *TaskMessage) error {
 	keys := []string{
 		c.ActiveKey(),
@@ -351,18 +311,69 @@ func (c *Cache) Success(msg *TaskMessage) error {
 	}
 	argv := []interface{}{
 		msg.ID,
-		60 * 10,
+		c.Retention,
 		msg.Type,
 		msg.PostTaskIDs,
 		c.TaskKeyPrefix(),
+		time.Now().Unix(),
 	}
-	// 子任务
 	return successCmd.Run(c.RedisConn, keys, argv...).Err()
+}
+
+// KEYS[1] -> AsyncQueue:{<qname>}:active
+// KEYS[2] -> AsyncQueue:{<qname>}:task:<task_id>
+// KEYS[3] -> AsyncQueue:{<qname>}:p:<priority>:daging
+// KEYS[4] -> AsyncQueue:{<qname>}:failure
+// -------
+// ARGV[1] -> task ID
+// ARGV[2] -> failure retention seconds
+// ARGV[3] -> task Type
+// ARGV[4] -> task PostTaskIDs
+// ARGV[5] -> task key prefix
+// ARGV[6] -> current timestamp seconds
+var failureCmd = redis.NewScript(`
+if redis.call("ZREM", KEYS[1], ARGV[1]) == 0 then
+	return redis.error_reply("NOT FOUND")
+end
+redis.call("HSET", KEYS[2], "state", "failure")
+redis.call("HSET", KEYS[2], "failure_since", ARGV[6])
+redis.call("EXPIRE", KEYS[2], ARGV[2])
+redis.call("ZADD", KEYS[4], ARGV[6], ARGV[1])
+if ARGV[3] == "dag" and ARGV[4] ~= "" then
+	for taskID in (ARGV[4] .. ","):gmatch("(.-)" .. ",") do
+		if redis.call("ZREM", KEYS[3], taskID) == 1 then
+			local key = ARGV[5] .. taskID
+			local inDegree = redis.call("HINCRBY", key, "inDegree", -1)
+			redis.call("ZADD", KEYS[3], inDegree, taskID)
+		end
+	end
+end
+return redis.status_reply("OK")
+`)
+
+// Failure 任务处理失败，从处理队列中移除任务，并写入失败队列，不再重试
+// 如果是DAG任务，则对子任务的入度减少1
+func (c *Cache) Failure(msg *TaskMessage) error {
+	keys := []string{
+		c.ActiveKey(),
+		c.TaskKey(msg.ID),
+		c.DAGingKey(msg.Priority),
+		c.FailureKey(),
+	}
+	argv := []interface{}{
+		msg.ID,
+		c.FailureRetention,
+		msg.Type,
+		msg.PostTaskIDs,
+		c.TaskKeyPrefix(),
+		time.Now().Unix(),
+	}
+	return failureCmd.Run(c.RedisConn, keys, argv...).Err()
 }
 
 var retryCmd = redis.NewScript(`
 if redis.call("ZREM", KEYS[1], ARGV[1]) == 0 then
-  return redis.error_reply("NOT FOUND")
+	return redis.error_reply("NOT FOUND")
 end
 redis.call("ZADD", KEYS[2], ARGV[2], ARGV[1])
 redis.call("HSET", KEYS[3], "state", "retry")
@@ -391,33 +402,6 @@ func (c *Cache) Retry(msg *TaskMessage, processAt int64, isFailure bool) error {
 		msg.Retry,
 	}
 	return retryCmd.Run(c.RedisConn, keys, argv...).Err()
-}
-
-// KEYS[1] -> AsyncQueue:{<qname>}:active
-// KEYS[2] -> AsyncQueue:{<qname>}:lease
-// KEYS[3] -> AsyncQueue:{<qname>}:p:<priority>:pending
-// KEYS[4] -> AsyncQueue:{<qname>}:task:<task_id>
-// ARGV[1] -> task ID
-// Note: Use RPUSH to push to the head of the queue.
-var requeueCmd = redis.NewScript(`
-if redis.call("LREM", KEYS[1], 0, ARGV[1]) == 0 then
-  return redis.error_reply("NOT FOUND")
-end
-redis.call("LPUSH", KEYS[2], ARGV[1])
-redis.call("HSET", KEYS[3], "state", "pending")
-return redis.status_reply("OK")`)
-
-// Requeue moves the task from active queue to the specified queue.
-func (c *Cache) Requeue(msg *TaskMessage) error {
-	keys := []string{
-		c.ActiveKey(),
-		c.PendingKey(msg.Priority),
-		c.TaskKey(msg.ID),
-	}
-	argv := []interface{}{
-		msg.ID,
-	}
-	return requeueCmd.Run(c.RedisConn, keys, argv...).Err()
 }
 
 // KEYS[1] -> source queue (e.g. asynq:{<qname>:scheduled or asynq:{<qname>}:retry})
@@ -548,4 +532,8 @@ func (c *Cache) PendingKey(priority int64) string {
 
 func (c *Cache) ActiveKey() string {
 	return fmt.Sprintf("%s:active", c.QueueKeyPrefix())
+}
+
+func (c *Cache) FailureKey() string {
+	return fmt.Sprintf("%s:failure", c.QueueKeyPrefix())
 }

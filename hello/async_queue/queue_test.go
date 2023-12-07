@@ -22,17 +22,12 @@ func InitClient() *redis.Client {
 func TestAsyncQueue_Client(t *testing.T) {
 	client := InitClient()
 
-	queueEntity := NewAsyncQueue(
-		ConfigName("TestQueueA"),
-		ConfigRedisConn(client),
-	)
+	queueEntity := NewAsyncQueue("TestQueueA", client)
 	total := 5
 
 	for i := 0; i < total; i++ {
 		data := fmt.Sprintf("{\"id\":%d}", i)
-		_ = queueEntity.Publish(&TaskInfo{
-			Payload: []byte(data),
-		})
+		queueEntity.Publish([]byte(data))
 		time.Sleep(10 * time.Millisecond)
 	}
 }
@@ -45,10 +40,8 @@ func TestAsyncQueue_Server(t *testing.T) {
 		return nil
 	}
 
-	queueEntity := NewAsyncQueue(
-		ConfigName("TestQueueA"),
+	queueEntity := NewAsyncQueue("TestQueueA", client,
 		ConfigConcurrency(3),
-		ConfigRedisConn(client),
 		ConfigHandler(HandlerFunc(myHandler)),
 	)
 
@@ -76,22 +69,16 @@ func TestAsyncQueue_Schedule(t *testing.T) {
 	total := 20
 	wg.Add(total)
 
-	queueEntity := NewAsyncQueue(
-		ConfigName("TestQueueA"),
+	queueEntity := NewAsyncQueue("TestQueueA", client,
 		ConfigConcurrency(3),
-		ConfigRedisConn(client),
 		ConfigHandler(HandlerFunc(myHandler)),
 	)
 
 	processAt := time.Now().Unix()
 	for i := 0; i < total; i++ {
 		data := fmt.Sprintf("{\"id\":%d}", i)
-		queueEntity.Publish(&TaskInfo{
-			TaskMeta: TaskMeta{
-				ProcessAt: processAt,
-			},
-			Payload: []byte(data),
-		})
+		queueEntity.Publish([]byte(data),
+			ConfigTaskProcessAt(processAt))
 		processAt += 2
 	}
 	time.Sleep(1 * time.Second)
@@ -122,21 +109,17 @@ func TestAsyncQueue_List(t *testing.T) {
 	total := 10
 	wg.Add(total)
 
-	queueEntity := NewAsyncQueue(
-		ConfigName("TestQueueA"),
+	queueEntity := NewAsyncQueue("TestQueueA", client,
 		ConfigConcurrency(3),
-		ConfigRedisConn(client),
 		ConfigHandler(HandlerFunc(myHandler)),
 	)
 
-	tasks := make([]*TaskInfo, 0, total)
+	tasks := make([][]byte, 0, total)
 	for i := 0; i < total; i++ {
 		data := fmt.Sprintf("{\"id\":%d}", i)
-		tasks = append(tasks, &TaskInfo{
-			Payload: []byte(data),
-		})
+		tasks = append(tasks, []byte(data))
 	}
-	queueEntity.PublishList(tasks)
+	queueEntity.PublishListDAG(tasks)
 	time.Sleep(1 * time.Second)
 
 	// 初始化调用队列数据
@@ -171,10 +154,8 @@ func TestTaskQueueEntity_Run(t *testing.T) {
 	total := 10
 	wg.Add(total)
 
-	queueEntity := NewAsyncQueue(
-		ConfigName("TestQueueA"),
-		ConfigConcurrency(10),
-		ConfigRedisConn(client),
+	queueEntity := NewAsyncQueue("TestQueueA", client,
+		ConfigConcurrency(3),
 		ConfigHandler(HandlerFunc(myHandler)),
 	)
 
@@ -190,9 +171,7 @@ func TestTaskQueueEntity_Run(t *testing.T) {
 		// 推送消息
 		for i := 0; i < total; i++ {
 			data := fmt.Sprintf("{\"id\":%d}", i)
-			_ = queueEntity.Publish(&TaskInfo{
-				Payload: []byte(data),
-			})
+			queueEntity.Publish([]byte(data))
 			want[data] = true
 			time.Sleep(10 * time.Millisecond)
 		}

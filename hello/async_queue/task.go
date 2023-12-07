@@ -3,145 +3,152 @@ package async_queue
 import (
 	"github.com/MenciusCheng/algorithm-code/utils"
 	"strings"
+	"time"
 )
 
 // TaskInfo 任务信息
 type TaskInfo struct {
-	// 元数据
-	TaskMeta
-
 	// Payload 业务数据
 	Payload []byte
+
+	// TaskMeta 元数据
+	TaskMeta
 }
 
 type TaskMeta struct {
-	// 唯一任务ID
+	// ID 唯一任务ID
 	ID string
 
-	// 任务类型
+	// Type 任务类型
 	Type string
 
-	// 优先级
+	// Priority 优先级
 	Priority int64
 
-	// 计划开始执行时间戳（秒级）
+	// ProcessAt 计划开始执行时间戳（秒级）
 	ProcessAt int64
 
-	// 前置任务ID列表
+	// PreTaskIDs 前置任务ID列表
 	PreTaskIDs []string
 
-	// 入度，前置任务数
-	InDegree int64
+	// InDegree 入度，前置任务数
+	InDegree int
 
-	// 后置任务ID列表
+	// PostTaskIDs 后置任务ID列表
 	PostTaskIDs []string
 
 	// Retry 已重试次数
 	Retry int
 }
 
+func NewTaskInfo(payload []byte, taskType string, options ...OptionTaskFunc) *TaskInfo {
+	task := &TaskInfo{
+		Payload: payload,
+		TaskMeta: TaskMeta{
+			ID:       utils.GetUUIDV4(),
+			Type:     taskType,
+			Priority: QueuePriorityDefault,
+		},
+	}
+	for _, f := range options {
+		f(task)
+	}
+
+	return task
+}
+
 // TaskMessage is the internal representation of a task with additional metadata fields.
 // Serialized data of this type gets written to redis.
 type TaskMessage struct {
-	// ID is a unique identifier for each task.
-	ID string
-
-	PreTaskIDs string
-
-	PostTaskIDs string
-
-	ProcessAt int64
-
-	// Type indicates the kind of the task to be performed.
-	Type string
-
-	// 优先级
-	Priority int64
-
-	// 入度
-	InDegree int64
-
-	// Payload holds data needed to process the task.
+	// Payload 业务数据
 	Payload []byte
 
-	// Queue is a name this message should be enqueued to.
-	Queue string
+	// ID 唯一任务ID
+	ID string
 
-	// Retry is the max number of retry for this task.
+	// Type 任务类型
+	Type string
+
+	// Priority 优先级
+	Priority int64
+
+	// ProcessAt 计划开始执行时间戳（秒级）
+	ProcessAt int64
+
+	// PreTaskIDs 前置任务ID列表, 逗号分割
+	PreTaskIDs string
+
+	// InDegree 入度，前置任务数
+	InDegree int
+
+	// PostTaskIDs 后置任务ID列表, 逗号分割
+	PostTaskIDs string
+
+	// Retry 已重试次数
 	Retry int
-
-	// Retried is the number of times we've retried this task so far.
-	Retried int
-
-	// ErrorMsg holds the error message from the last failure.
-	ErrorMsg string
-
-	// Time of last failure in Unix time,
-	// the number of seconds elapsed since January 1, 1970 UTC.
-	//
-	// Use zero to indicate no last failure
-	LastFailedAt int64
-
-	// Timeout specifies timeout in seconds.
-	// If task processing doesn't complete within the timeout, the task will be retried
-	// if retry count is remaining. Otherwise it will be moved to the archive.
-	//
-	// Use zero to indicate no timeout.
-	Timeout int64
-
-	// Deadline specifies the deadline for the task in Unix time,
-	// the number of seconds elapsed since January 1, 1970 UTC.
-	// If task processing doesn't complete before the deadline, the task will be retried
-	// if retry count is remaining. Otherwise it will be moved to the archive.
-	//
-	// Use zero to indicate no deadline.
-	Deadline int64
-
-	// UniqueKey holds the redis key used for uniqueness lock for this task.
-	//
-	// Empty string indicates that no uniqueness lock was used.
-	UniqueKey string
-
-	// GroupKey holds the group key used for task aggregation.
-	//
-	// Empty string indicates no aggregation is used for this task.
-	GroupKey string
-
-	// Retention specifies the number of seconds the task should be retained after completion.
-	Retention int64
-
-	// CompletedAt is the time the task was processed successfully in Unix time,
-	// the number of seconds elapsed since January 1, 1970 UTC.
-	//
-	// Use zero to indicate no value.
-	CompletedAt int64
-}
-
-func initTaskInfo(task *TaskInfo, taskType string) {
-	task.Type = taskType
-	if task.ID == "" {
-		task.ID = utils.GetUUIDV4()
-	}
-	// TODO 校验优先级是否在配置内
-	if task.Priority <= 0 {
-		task.Priority = QueuePriorityDefault
-	}
 }
 
 func TaskInfoToMessage(task *TaskInfo) *TaskMessage {
 	msg := &TaskMessage{
+		Payload:   task.Payload,
 		ID:        task.ID,
 		Type:      task.Type,
 		Priority:  task.Priority,
-		Payload:   task.Payload,
 		ProcessAt: task.ProcessAt,
 		InDegree:  task.InDegree,
 	}
 	if len(task.PreTaskIDs) > 0 {
-		msg.PreTaskIDs = strings.Join(task.PreTaskIDs, ",")
+		msg.PreTaskIDs = strings.Join(task.PreTaskIDs, TaskIDSep)
 	}
 	if len(task.PostTaskIDs) > 0 {
-		msg.PostTaskIDs = strings.Join(task.PostTaskIDs, ",")
+		msg.PostTaskIDs = strings.Join(task.PostTaskIDs, TaskIDSep)
 	}
 	return msg
+}
+
+func TaskMessageToInfo(msg *TaskMessage) *TaskInfo {
+	taskInfo := &TaskInfo{
+		Payload: msg.Payload,
+		TaskMeta: TaskMeta{
+			ID:          msg.ID,
+			Type:        msg.Type,
+			Priority:    msg.Priority,
+			ProcessAt:   msg.ProcessAt,
+			PreTaskIDs:  nil,
+			InDegree:    msg.InDegree,
+			PostTaskIDs: nil,
+			Retry:       msg.Retry,
+		},
+	}
+	if len(msg.PreTaskIDs) > 0 {
+		taskInfo.PreTaskIDs = strings.Split(msg.PreTaskIDs, TaskIDSep)
+	}
+	if len(msg.PostTaskIDs) > 0 {
+		taskInfo.PostTaskIDs = strings.Split(msg.PostTaskIDs, TaskIDSep)
+	}
+	return taskInfo
+}
+
+type OptionTaskFunc func(*TaskInfo)
+
+// ConfigTaskPriority 配置任务优先级
+func ConfigTaskPriority(priority int64) OptionTaskFunc {
+	return func(t *TaskInfo) {
+		t.Priority = priority
+	}
+}
+
+// ConfigTaskProcessAt 配置任务计划开始执行时间戳（秒级）
+func ConfigTaskProcessAt(processAt int64) OptionTaskFunc {
+	return func(t *TaskInfo) {
+		t.ProcessAt = processAt
+	}
+}
+
+// ConfigTaskDelaySecond 配置任务延时执行秒数
+func ConfigTaskDelaySecond(second int64) OptionTaskFunc {
+	return func(t *TaskInfo) {
+		ts := time.Now().Add(time.Duration(second) * time.Second)
+		t.ProcessAt = ts.Unix()
+	}
 }
