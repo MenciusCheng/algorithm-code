@@ -333,7 +333,7 @@ end
 redis.call("HSET", KEYS[2], "state", "failure")
 redis.call("EXPIRE", KEYS[2], ARGV[2])
 if tonumber(ARGV[2]) > 0 then
-	redis.call("ZADD", KEYS[4], ARGV[6], KEYS[4])
+	redis.call("ZADD", KEYS[4], ARGV[6], ARGV[1])
 	redis.call("EXPIRE", KEYS[4], ARGV[2])
 end
 if ARGV[3] == "dag" and ARGV[4] ~= "" then

@@ -133,6 +133,57 @@ func TestAsyncQueue_List(t *testing.T) {
 	time.Sleep(2 * time.Second)
 }
 
+func TestAsyncQueue_Retry(t *testing.T) {
+	client := InitClient()
+
+	cnt := make(map[string]int)
+	wg := &sync.WaitGroup{}
+	lock := &sync.Mutex{}
+	myHandler := func(param *TaskInfo) error {
+		lock.Lock()
+		defer func() {
+			lock.Unlock()
+		}()
+		if cnt[string(param.Payload)] == 0 {
+			cnt[string(param.Payload)] += 1
+			log.Info("重试任务", zap.ByteString("data", param.Payload))
+			param.RetryDelay(2)
+			return nil
+		}
+
+		log.Info("处理任务", zap.ByteString("data", param.Payload))
+		wg.Done()
+		return nil
+	}
+	total := 10
+	wg.Add(total)
+
+	queueEntity := NewAsyncQueue("TestQueueA", client,
+		ConfigConcurrency(3),
+		ConfigHandler(HandlerFunc(myHandler)),
+		ConfigRetryMax(1),
+	)
+
+	processAt := time.Now().Unix()
+	for i := 0; i < total; i++ {
+		data := fmt.Sprintf("{\"id\":%d}", i)
+		queueEntity.Publish([]byte(data), ConfigTaskProcessAt(processAt))
+		processAt += 1
+	}
+	time.Sleep(1 * time.Second)
+
+	// 初始化调用队列数据
+	err := queueEntity.StartConsuming()
+	if err != nil {
+		t.Errorf("StartConsuming err: %v", err)
+		return
+	}
+
+	wg.Wait()
+	log.Info("finish")
+	time.Sleep(2 * time.Second)
+}
+
 func TestTaskQueueEntity_Run(t *testing.T) {
 	client := InitClient()
 
