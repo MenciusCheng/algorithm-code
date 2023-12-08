@@ -2,8 +2,9 @@ package async_queue
 
 import (
 	"fmt"
+	"github.com/MenciusCheng/algorithm-code/utils/log"
 	"github.com/go-redis/redis"
-	"log"
+	"go.uber.org/zap"
 	"reflect"
 	"sync"
 	"testing"
@@ -28,7 +29,6 @@ func TestAsyncQueue_Client(t *testing.T) {
 	for i := 0; i < total; i++ {
 		data := fmt.Sprintf("{\"id\":%d}", i)
 		queueEntity.Publish([]byte(data))
-		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -36,7 +36,7 @@ func TestAsyncQueue_Server(t *testing.T) {
 	client := InitClient()
 
 	myHandler := func(param *TaskInfo) error {
-		log.Println("处理任务", "data", string(param.Payload))
+		log.Info("处理任务", zap.ByteString("data", param.Payload))
 		return nil
 	}
 
@@ -52,7 +52,7 @@ func TestAsyncQueue_Server(t *testing.T) {
 		return
 	}
 
-	time.Sleep(60 * time.Second)
+	time.Sleep(10 * time.Second)
 }
 
 func TestAsyncQueue_Schedule(t *testing.T) {
@@ -63,10 +63,10 @@ func TestAsyncQueue_Schedule(t *testing.T) {
 		defer func() {
 			wg.Done()
 		}()
-		log.Println("处理任务", "data", string(param.Payload))
+		log.Info("处理任务", zap.ByteString("data", param.Payload))
 		return nil
 	}
-	total := 20
+	total := 10
 	wg.Add(total)
 
 	queueEntity := NewAsyncQueue("TestQueueA", client,
@@ -77,8 +77,7 @@ func TestAsyncQueue_Schedule(t *testing.T) {
 	processAt := time.Now().Unix()
 	for i := 0; i < total; i++ {
 		data := fmt.Sprintf("{\"id\":%d}", i)
-		queueEntity.Publish([]byte(data),
-			ConfigTaskProcessAt(processAt))
+		queueEntity.Publish([]byte(data), ConfigTaskProcessAt(processAt))
 		processAt += 2
 	}
 	time.Sleep(1 * time.Second)
@@ -91,7 +90,7 @@ func TestAsyncQueue_Schedule(t *testing.T) {
 	}
 
 	wg.Wait()
-	log.Println("finish")
+	log.Info("finish")
 	time.Sleep(2 * time.Second)
 }
 
@@ -103,7 +102,7 @@ func TestAsyncQueue_List(t *testing.T) {
 		defer func() {
 			wg.Done()
 		}()
-		log.Println("处理任务", "data", string(param.Payload))
+		log.Info("处理任务", zap.ByteString("data", param.Payload))
 		return nil
 	}
 	total := 10
@@ -130,7 +129,7 @@ func TestAsyncQueue_List(t *testing.T) {
 	}
 
 	wg.Wait()
-	log.Println("finish")
+	log.Info("finish")
 	time.Sleep(2 * time.Second)
 }
 
@@ -144,7 +143,7 @@ func TestTaskQueueEntity_Run(t *testing.T) {
 		defer func() {
 			wg.Done()
 		}()
-		log.Println("处理任务", "data", string(param.Payload))
+		log.Info("处理任务", zap.ByteString("data", param.Payload))
 		lock.Lock()
 		got[string(param.Payload)] = true
 		lock.Unlock()
@@ -175,7 +174,7 @@ func TestTaskQueueEntity_Run(t *testing.T) {
 			want[data] = true
 			time.Sleep(10 * time.Millisecond)
 		}
-		log.Println("推送消息完成")
+		log.Info("推送消息完成")
 	}()
 
 	wg.Wait()
@@ -185,5 +184,4 @@ func TestTaskQueueEntity_Run(t *testing.T) {
 		t.Errorf("got = %v, want %v", got, want)
 		return
 	}
-	log.Println("finish", "got len", len(got), "want len", len(want))
 }

@@ -13,6 +13,9 @@ type TaskInfo struct {
 
 	// TaskMeta 元数据
 	TaskMeta
+
+	// TaskWriter 处理结果
+	TaskWriter
 }
 
 type TaskMeta struct {
@@ -38,7 +41,15 @@ type TaskMeta struct {
 	PostTaskIDs []string
 
 	// Retry 已重试次数
-	Retry int
+	Retry int64
+}
+
+type TaskWriter struct {
+	// isNeedRetry 是否需要重试
+	isNeedRetry bool
+
+	// retryDelaySecond 重试延时秒数
+	retryDelaySecond int64
 }
 
 func NewTaskInfo(payload []byte, taskType string, options ...OptionTaskFunc) *TaskInfo {
@@ -55,6 +66,12 @@ func NewTaskInfo(payload []byte, taskType string, options ...OptionTaskFunc) *Ta
 	}
 
 	return task
+}
+
+// RetryDelay 重试并指定延时秒数，判断是否超过重试上限，超过则不再重试
+func (t *TaskInfo) RetryDelay(delaySecond int64) {
+	t.isNeedRetry = true
+	t.retryDelaySecond = delaySecond
 }
 
 // TaskMessage is the internal representation of a task with additional metadata fields.
@@ -85,7 +102,7 @@ type TaskMessage struct {
 	PostTaskIDs string
 
 	// Retry 已重试次数
-	Retry int
+	Retry int64
 }
 
 func TaskInfoToMessage(task *TaskInfo) *TaskMessage {
@@ -110,14 +127,12 @@ func TaskMessageToInfo(msg *TaskMessage) *TaskInfo {
 	taskInfo := &TaskInfo{
 		Payload: msg.Payload,
 		TaskMeta: TaskMeta{
-			ID:          msg.ID,
-			Type:        msg.Type,
-			Priority:    msg.Priority,
-			ProcessAt:   msg.ProcessAt,
-			PreTaskIDs:  nil,
-			InDegree:    msg.InDegree,
-			PostTaskIDs: nil,
-			Retry:       msg.Retry,
+			ID:        msg.ID,
+			Type:      msg.Type,
+			Priority:  msg.Priority,
+			ProcessAt: msg.ProcessAt,
+			InDegree:  msg.InDegree,
+			Retry:     msg.Retry,
 		},
 	}
 	if len(msg.PreTaskIDs) > 0 {

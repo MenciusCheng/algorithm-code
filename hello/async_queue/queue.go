@@ -217,36 +217,58 @@ func (a *AsyncQueue) consumeApi(consumerID int64) {
 }
 
 func (a *AsyncQueue) consumeTask(consumerID int64) {
-	var resp *TaskMessage
+	var msg *TaskMessage
 	var err error
 
 	for _, priority := range a.Priorities {
 		// 先从高优先级队列获取任务
-		resp, err = a.Cache.Active(priority)
+		msg, err = a.Cache.Active(priority)
 		if err != nil {
 			log.Error("consumeTask GetMessages error", zap.Error(err), zap.Int64("consumerID", consumerID))
 			return
 		}
-		if resp != nil {
+		if msg != nil {
 			break
 		}
 	}
 	// 无任务消息，直接返回
-	if resp == nil {
+	if msg == nil {
 		return
 	}
 
-	task := TaskMessageToInfo(resp)
+	task := TaskMessageToInfo(msg)
 	for _, handler := range a.Handlers {
-		handler.ProcessTask(task)
+		err = handler.ProcessTask(task)
+		if err != nil {
+			// 失败不再重试
+			if err = a.Cache.Failure(msg); err != nil {
+				log.Error("consumeTask cache failure err", zap.Error(err))
+			}
+			return
+		}
+		if task.isNeedRetry {
+			msg.Retry++
+			if msg.Retry > a.RetryMax {
+				// 超过重试上限
+				if err = a.Cache.Failure(msg); err != nil {
+					log.Error("consumeTask cache failure err", zap.Error(err))
+				}
+				return
+			}
+			ts := time.Now().Add(time.Duration(task.retryDelaySecond) * time.Second).Unix()
+			// 重试
+			if err = a.Cache.Retry(msg, ts); err != nil {
+				log.Error("consumeTask cache retry err", zap.Error(err))
+			}
+			return
+		}
 	}
 
-	err = a.Cache.Success(resp)
+	err = a.Cache.Success(msg)
 	if err != nil {
-		log.Error("Success err", zap.Error(err))
+		log.Error("consumeTask cache success err", zap.Error(err))
 		return
 	}
-	log.Debug("consumeTask end finish", zap.Int64("consumerID", consumerID))
 }
 
 func (a *AsyncQueue) forwardAll() {
@@ -255,7 +277,12 @@ func (a *AsyncQueue) forwardAll() {
 		select {
 		case <-tick.C:
 			for _, priority := range a.Priorities {
-				a.Cache.Forward(priority)
+				n, err := a.Cache.Forward(priority)
+				if err != nil {
+					log.Error("Forward failed", zap.String("queueName", a.QueueName), zap.Int64("priority", priority), zap.Error(err))
+				} else if n > 0 {
+					log.Debug("Forward success", zap.String("queueName", a.QueueName), zap.Int64("priority", priority), zap.Int64("count", n))
+				}
 			}
 		}
 	}
@@ -267,7 +294,12 @@ func (a *AsyncQueue) dagForwardAll() {
 		select {
 		case <-tick.C:
 			for _, priority := range a.Priorities {
-				a.Cache.DAGForward(priority)
+				n, err := a.Cache.DAGForward(priority)
+				if err != nil {
+					log.Error("DAGForward failed", zap.String("queueName", a.QueueName), zap.Int64("priority", priority), zap.Error(err))
+				} else if n > 0 {
+					log.Debug("DAGForward success", zap.String("queueName", a.QueueName), zap.Int64("priority", priority), zap.Int64("count", n))
+				}
 			}
 		}
 	}
@@ -277,10 +309,7 @@ type Handler interface {
 	ProcessTask(*TaskInfo) error
 }
 
-// The HandlerFunc type is an adapter to allow the use of
-// ordinary functions as HTTP handlers. If f is a function
-// with the appropriate signature, HandlerFunc(f) is a
-// Handler that calls f.
+// HandlerFunc 队列处理方法，返回nil表示成功，返回非nil时失败不再重试，如需重试通过 TaskInfo.RetryDelay 设置并返回nil
 type HandlerFunc func(*TaskInfo) error
 
 // ProcessTask calls f(t)

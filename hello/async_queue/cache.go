@@ -261,7 +261,7 @@ func (c *Cache) Active(priority int64) (msg *TaskMessage, err error) {
 		msg.Priority, _ = strconv.ParseInt(resMap["priority"], 10, 64)
 	}
 	if len(resMap["retry"]) > 0 {
-		msg.Retry, _ = strconv.Atoi(resMap["retry"])
+		msg.Retry, _ = strconv.ParseInt(resMap["retry"], 10, 64)
 	}
 	if len(resMap["inDegree"]) > 0 {
 		msg.InDegree, _ = strconv.Atoi(resMap["inDegree"])
@@ -279,15 +279,11 @@ func (c *Cache) Active(priority int64) (msg *TaskMessage, err error) {
 // ARGV[3] -> task Type
 // ARGV[4] -> task PostTaskIDs
 // ARGV[5] -> task key prefix
-// ARGV[6] -> current timestamp seconds
 var successCmd = redis.NewScript(`
 if redis.call("ZREM", KEYS[1], ARGV[1]) == 0 then
 	return redis.error_reply("NOT FOUND")
 end
-if tonumber(ARGV[2]) > 0 then
-	redis.call("HSET", KEYS[2], "state", "success")
-	redis.call("HSET", KEYS[2], "success_since", ARGV[6])
-end
+redis.call("HSET", KEYS[2], "state", "success")
 redis.call("EXPIRE", KEYS[2], ARGV[2])
 if ARGV[3] == "dag" and ARGV[4] ~= "" then
 	for taskID in (ARGV[4] .. ","):gmatch("(.-)" .. ",") do
@@ -315,7 +311,6 @@ func (c *Cache) Success(msg *TaskMessage) error {
 		msg.Type,
 		msg.PostTaskIDs,
 		c.TaskKeyPrefix(),
-		time.Now().Unix(),
 	}
 	return successCmd.Run(c.RedisConn, keys, argv...).Err()
 }
@@ -336,14 +331,16 @@ if redis.call("ZREM", KEYS[1], ARGV[1]) == 0 then
 	return redis.error_reply("NOT FOUND")
 end
 redis.call("HSET", KEYS[2], "state", "failure")
-redis.call("HSET", KEYS[2], "failure_since", ARGV[6])
 redis.call("EXPIRE", KEYS[2], ARGV[2])
-redis.call("ZADD", KEYS[4], ARGV[6], ARGV[1])
+if tonumber(ARGV[2]) > 0 then
+	redis.call("ZADD", KEYS[4], ARGV[6], KEYS[4])
+	redis.call("EXPIRE", KEYS[4], ARGV[2])
+end
 if ARGV[3] == "dag" and ARGV[4] ~= "" then
 	for taskID in (ARGV[4] .. ","):gmatch("(.-)" .. ",") do
 		if redis.call("ZREM", KEYS[3], taskID) == 1 then
-			local key = ARGV[5] .. taskID
-			local inDegree = redis.call("HINCRBY", key, "inDegree", -1)
+			local taskKey = ARGV[5] .. taskID
+			local inDegree = redis.call("HINCRBY", taskKey, "inDegree", -1)
 			redis.call("ZADD", KEYS[3], inDegree, taskID)
 		end
 	end
@@ -371,25 +368,25 @@ func (c *Cache) Failure(msg *TaskMessage) error {
 	return failureCmd.Run(c.RedisConn, keys, argv...).Err()
 }
 
+// KEYS[1] -> AsyncQueue:{<qname>}:active
+// KEYS[2] -> AsyncQueue:{<qname>}:p:<priority>:schedule
+// KEYS[3] -> AsyncQueue:{<qname>}:task:<task_id>
+// -------
+// ARGV[1] -> task ID
+// ARGV[2] -> task ProcessAt in Unix time
+// ARGV[3] -> task Retry count
 var retryCmd = redis.NewScript(`
 if redis.call("ZREM", KEYS[1], ARGV[1]) == 0 then
 	return redis.error_reply("NOT FOUND")
 end
 redis.call("ZADD", KEYS[2], ARGV[2], ARGV[1])
 redis.call("HSET", KEYS[3], "state", "retry")
-if tonumber(ARGV[3]) == 1 then
-	redis.call("HSET", KEYS[3], "retry", ARGV[4])
-end
+redis.call("HSET", KEYS[3], "retry", ARGV[3])
 return redis.status_reply("OK")
 `)
 
-// Retry removes the task from active queue and deletes the task.
-// It removes a uniqueness lock acquired by the task, if any.
-func (c *Cache) Retry(msg *TaskMessage, processAt int64, isFailure bool) error {
-	if isFailure {
-		msg.Retry++
-	}
-
+// Retry 重试任务，从处理队列中移除任务，推送至延时队列
+func (c *Cache) Retry(msg *TaskMessage, processAt int64) error {
 	keys := []string{
 		c.ActiveKey(),
 		c.ScheduleKey(msg.Priority),
@@ -398,26 +395,25 @@ func (c *Cache) Retry(msg *TaskMessage, processAt int64, isFailure bool) error {
 	argv := []interface{}{
 		msg.ID,
 		processAt,
-		isFailure,
 		msg.Retry,
 	}
 	return retryCmd.Run(c.RedisConn, keys, argv...).Err()
 }
 
-// KEYS[1] -> source queue (e.g. asynq:{<qname>:scheduled or asynq:{<qname>}:retry})
-// KEYS[2] -> asynq:{<qname>}:pending
+// KEYS[1] -> AsyncQueue:{<qname>}:p:<priority>:schedule
+// KEYS[2] -> AsyncQueue:{<qname>}:p:<priority>:daging
+// KEYS[3] -> AsyncQueue:{<qname>}:p:<priority>:pending
+// -------
 // ARGV[1] -> current unix time in seconds
 // ARGV[2] -> task key prefix
-// ARGV[3] -> current unix time in nsec
-// ARGV[4] -> group key prefix
-// Note: Script moves tasks up to 100 at a time to keep the runtime of script short.
 var forwardCmd = redis.NewScript(`
 local ids = redis.call("ZRANGEBYSCORE", KEYS[1], "-inf", ARGV[1], "LIMIT", 0, 100)
 for _, id in ipairs(ids) do
 	local taskKey = ARGV[2] .. id
 	local type = redis.call("HGET", taskKey, "type")
-	if type == 'dag' then
-	    redis.call("ZADD", KEYS[2], ARGV[1], id)
+	local inDegree = redis.call("HGET", taskKey, "inDegree")
+	if type == 'dag' and tonumber(inDegree) > 0 then
+	    redis.call("ZADD", KEYS[2], inDegree, id)
 	    redis.call("ZREM", KEYS[1], id)
 		redis.call("HSET", taskKey, 
 				   "state", "daging",
@@ -432,10 +428,8 @@ for _, id in ipairs(ids) do
 end
 return table.getn(ids)`)
 
-// Forward moves tasks with a score less than the current unix time from the delayed (i.e. scheduled | retry) zset
-// to the pending list or group set.
-// It returns the number of tasks moved.
-func (c *Cache) Forward(priority int64) (int, error) {
+// Forward 从延时队列中取出到达执行时间的任务，如果是DAG任务并且入度大于0则推入DAG队列，否则推入挂起队列
+func (c *Cache) Forward(priority int64) (int64, error) {
 	keys := []string{
 		c.ScheduleKey(priority),
 		c.DAGingKey(priority),
@@ -445,24 +439,18 @@ func (c *Cache) Forward(priority int64) (int, error) {
 		time.Now().Unix(),
 		c.TaskKeyPrefix(),
 	}
-	res, err := forwardCmd.Run(c.RedisConn, keys, argv...).Result()
+	n, err := forwardCmd.Run(c.RedisConn, keys, argv...).Int64()
 	if err != nil {
 		return 0, err
 	}
-	// TODO
-	if priority == 10 {
-		fmt.Printf("Forward res:%+v\n", res)
-	}
-	return 0, nil
+	return n, nil
 }
 
-// KEYS[1] -> source queue (e.g. asynq:{<qname>:scheduled or asynq:{<qname>}:retry})
-// KEYS[2] -> asynq:{<qname>}:pending
+// KEYS[1] -> AsyncQueue:{<qname>}:p:<priority>:daging
+// KEYS[2] -> AsyncQueue:{<qname>}:p:<priority>:pending
+// -------
 // ARGV[1] -> current unix time in seconds
 // ARGV[2] -> task key prefix
-// ARGV[3] -> current unix time in nsec
-// ARGV[4] -> group key prefix
-// Note: Script moves tasks up to 100 at a time to keep the runtime of script short.
 var dagforwardCmd = redis.NewScript(`
 local ids = redis.call("ZRANGEBYSCORE", KEYS[1], "-inf", 0, "LIMIT", 0, 100)
 for _, id in ipairs(ids) do
@@ -475,10 +463,8 @@ for _, id in ipairs(ids) do
 end
 return table.getn(ids)`)
 
-// DAGForward moves tasks with a score less than the current unix time from the delayed (i.e. scheduled | retry) zset
-// to the pending list or group set.
-// It returns the number of tasks moved.
-func (c *Cache) DAGForward(priority int64) (int, error) {
+// DAGForward 从DAG队列中取出入度为0的任务，推入挂起队列
+func (c *Cache) DAGForward(priority int64) (int64, error) {
 	keys := []string{
 		c.DAGingKey(priority),
 		c.PendingKey(priority),
@@ -487,15 +473,11 @@ func (c *Cache) DAGForward(priority int64) (int, error) {
 		time.Now().Unix(),
 		c.TaskKeyPrefix(),
 	}
-	res, err := dagforwardCmd.Run(c.RedisConn, keys, argv...).Result()
+	n, err := dagforwardCmd.Run(c.RedisConn, keys, argv...).Int64()
 	if err != nil {
 		return 0, err
 	}
-	// TODO
-	if priority == 10 {
-		fmt.Printf("DAGForward res:%+v\n", res)
-	}
-	return 0, nil
+	return n, nil
 }
 
 func (c *Cache) GetTaskStatus(id string) (string, error) {

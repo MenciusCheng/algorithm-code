@@ -2,12 +2,30 @@ package log
 
 import (
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"os"
 )
 
 var DefaultLogger = InitDefaultLogger()
 
 func InitDefaultLogger() *zap.Logger {
-	logger := zap.NewExample()
+	//logger := zap.NewExample()
+	//zap.NewProduction()
+
+	encoderCfg := zapcore.EncoderConfig{
+		MessageKey:     "msg",
+		LevelKey:       "level",
+		TimeKey:        "ts",
+		NameKey:        "logger",
+		CallerKey:      "caller",
+		EncodeLevel:    zapcore.LowercaseLevelEncoder,
+		EncodeTime:     zapcore.ISO8601TimeEncoder,
+		EncodeDuration: zapcore.StringDurationEncoder,
+		EncodeCaller:   zapcore.ShortCallerEncoder,
+	}
+	core := zapcore.NewCore(zapcore.NewJSONEncoder(encoderCfg), os.Stdout, zap.DebugLevel)
+	logger := zap.New(core)
+	//logger = logger.WithOptions(zap.AddCaller(), zap.AddCallerSkip(1))
 	return logger
 }
 
