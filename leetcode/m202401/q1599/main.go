@@ -1,12 +1,13 @@
-package leetcode
+package main
 
 import (
 	"fmt"
-	"testing"
+	"reflect"
 )
 
-func TestGen(t *testing.T) {
-	desc := `
+/*
+https://leetcode.cn/problems/maximum-profit-of-operating-a-centennial-wheel/description/
+
 1599. 经营摩天轮的最大利润
 中等
 
@@ -55,45 +56,81 @@ n == customers.length
 1 <= n <= 10^5
 0 <= customers[i] <= 50
 1 <= boardingCost, runningCost <= 100
-`
-
-	url := `
-https://leetcode.cn/problems/maximum-profit-of-operating-a-centennial-wheel/description/
-`
-
-	cal := `
-func minOperationsMaxProfit(customers []int, boardingCost int, runningCost int) int {
-
-}
-`
-
-	month := "m202401"
-
-	if err := Gen(desc, url, cal, month); err != nil {
-		t.Errorf("Gen error: %+v", err)
-	}
-}
-
-func TestArrStr(t *testing.T) {
-	type args struct {
-		str string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
+*/
+func main() {
+	var tests = []struct {
+		customers    []int
+		boardingCost int
+		runningCost  int
+		want         int
 	}{
 		{
-			args: args{
-				str: `
-[[24,11,22,17,4],[21,16,5,12,9],[6,23,10,3,18],[15,20,1,8,13],[0,7,14,19,2]]`,
-			},
+			customers:    []int{8, 3},
+			boardingCost: 5,
+			runningCost:  6,
+			want:         3,
+		},
+		{
+			customers:    []int{10, 9, 6},
+			boardingCost: 6,
+			runningCost:  4,
+			want:         7,
+		},
+		{
+			customers:    []int{3, 4, 0, 5, 1},
+			boardingCost: 1,
+			runningCost:  92,
+			want:         -1,
+		},
+		{
+			customers:    []int{0, 43, 37, 9, 23, 35, 18, 7, 45, 3, 8, 24, 1, 6, 37, 2, 38, 15, 1, 14, 39, 27, 4, 25, 27, 33, 43, 8, 44, 30, 38, 40, 20, 5, 17, 27, 43, 11, 6, 2, 30, 49, 30, 25, 32, 3, 18, 23, 45, 43, 30, 14, 41, 17, 42, 42, 44, 38, 18, 26, 32, 48, 37, 5, 37, 21, 2, 9, 48, 48, 40, 45, 25, 30, 49, 41, 4, 48, 40, 29, 23, 17, 7, 5, 44, 23, 43, 9, 35, 26, 44, 3, 26, 16, 31, 11, 9, 4, 28, 49, 43, 39, 9, 39, 37, 7, 6, 7, 16, 1, 30, 2, 4, 43, 23, 16, 39, 5, 30, 23, 39, 29, 31, 26, 35, 15, 5, 11, 45, 44, 45, 43, 4, 24, 40, 7, 36, 10, 10, 18, 6, 20, 13, 11, 20, 3, 32, 49, 34, 41, 13, 11, 3, 13, 0, 13, 44, 48, 43, 23, 12, 23, 2},
+			boardingCost: 43,
+			runningCost:  54,
+			want:         993,
+		},
+		{
+			customers:    []int{1, 0, 3},
+			boardingCost: 61,
+			runningCost:  55,
+			want:         3,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ArrStr(tt.args.str)
-			fmt.Println(got)
-		})
+
+	for _, item := range tests {
+		if ans := minOperationsMaxProfit(item.customers, item.boardingCost, item.runningCost); reflect.DeepEqual(ans, item.want) {
+			fmt.Println(true)
+		} else {
+			fmt.Printf("ans: %+v, want: %+v\n", ans, item.want)
+		}
 	}
+}
+
+func minOperationsMaxProfit(customers []int, boardingCost int, runningCost int) int {
+	res := -1
+	maxCost := 0
+	cost := 0
+	wait := 0
+	board := 0
+	i := 0
+
+	for i < len(customers) || wait > 0 {
+		if i < len(customers) {
+			wait += customers[i]
+		}
+		i++
+
+		if wait >= 4 {
+			board = 4
+		} else {
+			board = wait
+		}
+		wait -= board
+		cost += board*boardingCost - runningCost
+		if cost > 0 && cost > maxCost {
+			maxCost = cost
+			res = i
+		}
+	}
+
+	return res
 }
