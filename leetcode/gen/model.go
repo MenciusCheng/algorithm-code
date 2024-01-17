@@ -184,7 +184,7 @@ func CalInputSubjectTestParam(param SubjectParam, line string) (SubjectTestParam
 	case "string":
 		paramRegStr = fmt.Sprintf(`%s\s*=\s*("[\w\[\], \-]*")`, param.Name)
 	case "[]int", "[][]int", "[]string", "[][]string", "[]bool":
-		paramRegStr = fmt.Sprintf(`%s\s*=\s*\[([\w\[\], \-]*)\]`, param.Name)
+		paramRegStr = fmt.Sprintf(`%s\s*=\s*\[([\w\[\], \-\"]*)\]`, param.Name)
 	case "bool":
 		paramRegStr = fmt.Sprintf(`%s\s*=\s*(true|false)`, param.Name)
 	}
