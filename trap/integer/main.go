@@ -19,3 +19,8 @@ func fmtFloat64() {
 	fmt.Printf("%v\n", float64(100.0))
 	fmt.Printf("%v\n", float64(100.23))
 }
+
+// 前缀补0
+func PrefixZero(d int) string {
+	return fmt.Sprintf("%02d", d)
+}
