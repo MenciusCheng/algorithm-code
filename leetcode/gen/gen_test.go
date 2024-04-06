@@ -7,54 +7,39 @@ import (
 
 func TestGen(t *testing.T) {
 	desc := `
-2192. 有向无环图中一个节点的所有祖先
+1026. 节点与其祖先之间的最大差值
 中等
-给你一个正整数 n ，它表示一个 有向无环图 中节点的数目，节点编号为 0 到 n - 1 （包括两者）。
-给你一个二维整数数组 edges ，其中 edges[i] = [fromi, toi] 表示图中一条从 fromi 到 toi 的单向边。
-请你返回一个数组 answer，其中 answer[i]是第 i 个节点的所有 祖先 ，这些祖先节点 升序 排序。
-如果 u 通过一系列边，能够到达 v ，那么我们称节点 u 是节点 v 的 祖先 节点。
+给定二叉树的根节点 root，找出存在于 不同 节点 A 和 B 之间的最大值 V，其中 V = |A.val - B.val|，且 A 是 B 的祖先。
+（如果 A 的任何子节点之一为 B，或者 A 的任何子节点是 B 的祖先，那么我们认为 A 是 B 的祖先）
 
 示例 1：
 
-输入：n = 8, edgeList = [[0,3],[0,4],[1,3],[2,4],[2,7],[3,5],[3,6],[3,7],[4,6]]
-输出：[[],[],[],[0,1],[0,2],[0,1,3],[0,1,2,3,4],[0,1,2,3]]
-解释：
-上图为输入所对应的图。
-- 节点 0 ，1 和 2 没有任何祖先。
-- 节点 3 有 2 个祖先 0 和 1 。
-- 节点 4 有 2 个祖先 0 和 2 。
-- 节点 5 有 3 个祖先 0 ，1 和 3 。
-- 节点 6 有 5 个祖先 0 ，1 ，2 ，3 和 4 。
-- 节点 7 有 4 个祖先 0 ，1 ，2 和 3 。
+输入：root = [8,3,10,1,6,null,14,null,null,4,7,13]
+输出：7
+解释： 
+我们有大量的节点与其祖先的差值，其中一些如下：
+|8 - 3| = 5
+|3 - 7| = 4
+|8 - 1| = 7
+|10 - 13| = 3
+在所有可能的差值中，最大值 7 由 |8 - 1| = 7 得出。
 示例 2：
 
-输入：n = 5, edgeList = [[0,1],[0,2],[0,3],[0,4],[1,2],[1,3],[1,4],[2,3],[2,4],[3,4]]
-输出：[[],[0],[0,1],[0,1,2],[0,1,2,3]]
-解释：
-上图为输入所对应的图。
-- 节点 0 没有任何祖先。
-- 节点 1 有 1 个祖先 0 。
-- 节点 2 有 2 个祖先 0 和 1 。
-- 节点 3 有 3 个祖先 0 ，1 和 2 。
-- 节点 4 有 4 个祖先 0 ，1 ，2 和 3 。
+输入：root = [1,null,2,null,0,3]
+输出：3
 
 提示：
 
-1 <= n <= 1000
-0 <= edges.length <= min(2000, n * (n - 1) / 2)
-edges[i].length == 2
-0 <= fromi, toi <= n - 1
-fromi != toi
-图中不会有重边。
-图是 有向 且 无环 的。
+树中的节点数在 2 到 5000 之间。
+0 <= Node.val <= 10^5
 `
 
 	url := `
-https://leetcode.cn/problems/all-ancestors-of-a-node-in-a-directed-acyclic-graph/?envType=daily-question&envId=2024-04-04
+https://leetcode.cn/problems/maximum-difference-between-node-and-ancestor/description/?envType=daily-question&envId=2024-04-05
 `
 
 	cal := `
-func getAncestors(n int, edges [][]int) [][]int {
+func maxAncestorDiff(root *TreeNode) int {
 
 }
 `
