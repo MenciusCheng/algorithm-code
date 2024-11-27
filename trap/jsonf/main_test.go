@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"fmt"
+	"testing"
+)
 
 func TestUnmarshalPromotionV2Data(t *testing.T) {
 	type args struct {
@@ -86,4 +90,44 @@ func TestUnmarshal2PromotionV2DataXX(t *testing.T) {
 
 func TestMapToJson(t *testing.T) {
 	MapToJsonToMapToJson()
+}
+
+func Test_printJson(t *testing.T) {
+	printJson()
+}
+
+func TestUnJson(t *testing.T) {
+	attireIdStr := "[\"118\",\"9\"]"
+	attireIdStrArr := make([]string, 0)
+	err := json.Unmarshal([]byte(attireIdStr), &attireIdStrArr)
+	if err != nil {
+		t.Errorf("Unmarshal err: %v", err)
+		return
+	}
+	t.Log(attireIdStrArr)
+}
+
+func TestMJson(t *testing.T) {
+	//attireIdStr := "['118','9']"
+	attireIdStrArr := make([]string, 0)
+	attireIdStrArr = append(attireIdStrArr, "118")
+	attireIdStrArr = append(attireIdStrArr, "9")
+
+	attireIdStr, err := json.Marshal(attireIdStrArr)
+	if err != nil {
+		t.Errorf("Marshal err: %v", err)
+		return
+	}
+	t.Log(string(attireIdStr))
+}
+
+func TestStructToJSONWithDefaults(t *testing.T) {
+	out, _ := StructToJSONWithDefaults(JsonYearFireworkConf{})
+	fmt.Println(out)
+}
+
+func TestStructDefinitionToJSON(t *testing.T) {
+	arg := "type JsonYearFireworkCondition struct {\n\tGiftIds []int32 `json:\"gift_ids\"` // 送礼礼物ID列表\n\tMinGold int64   `json:\"min_gold\"` // 燃放烟花金币\n}\n\ntype JsonYearFireworkRank struct {\n\tRankConfId   int32 `json:\"rank_conf_id\"`   // 榜单配置ID\n\tRankPoint    int64 `json:\"rank_point\"`     // 榜单心动值\n\tRankNoticeId int64 `json:\"rank_notice_id\"` // 榜单心动值通知关联id\n}\n\ntype JsonYearFireworkTaskData struct {\n\tTaskId     int64  `json:\"task_id\"`     // 任务ID\n\tTaskName   string `json:\"task_name\"`   // 任务名称\n\tLastNumber int64  `json:\"last_number\"` // 烟花编号尾数\n\tRateNumber int64  `json:\"rate_number\"` // 烟花编号倍数\n\tRelateId   int64  `json:\"relate_id\"`   // 奖励关联id\n\tNoticeId   int64  `json:\"notice_id\"`   // 通知关联id\n}\n\ntype JsonYearFireworkConf struct {\n\tCondition *JsonYearFireworkCondition  `json:\"condition\"` // 玩法完成条件\n\tRank      *JsonYearFireworkRank       `json:\"rank\"`      // 玩法榜单配置\n\tTasks     []*JsonYearFireworkTaskData `json:\"tasks\"`     // 烟花奖励配置\n}"
+	got, _ := StructDefinitionToJSON(arg)
+	fmt.Println(got)
 }
