@@ -122,7 +122,7 @@ func TestMJson(t *testing.T) {
 }
 
 func TestStructToJSONWithDefaults(t *testing.T) {
-	out, _ := StructToJSONWithDefaults(JsonYearFireworkConf{})
+	out, _ := StructToJSONWithDefaults(JsonBirthdayWeekConf{})
 	fmt.Println(out)
 }
 

@@ -340,19 +340,12 @@ type JsonYearFireworkRank struct {
 	RankNoticeId int64 `json:"rank_notice_id"` // 榜单心动值通知关联id
 }
 
-type JsonYearFireworkTaskData struct {
-	TaskId     int64  `json:"task_id"`     // 任务ID
-	TaskName   string `json:"task_name"`   // 任务名称
-	LastNumber int64  `json:"last_number"` // 烟花编号尾数
-	RateNumber int64  `json:"rate_number"` // 烟花编号倍数
-	RelateId   int64  `json:"relate_id"`   // 奖励关联id
-	NoticeId   int64  `json:"notice_id"`   // 通知关联id
-}
-
-type JsonYearFireworkConf struct {
-	Condition *JsonYearFireworkCondition  `json:"condition"` // 玩法完成条件
-	Rank      *JsonYearFireworkRank       `json:"rank"`      // 玩法榜单配置
-	Tasks     []*JsonYearFireworkTaskData `json:"tasks"`     // 烟花奖励配置
+type JsonBirthdayWeekConf struct {
+	WeekStartNoticeId   int32 `json:"week_start_notice_id"`   // 生日周开始通知id
+	WeekStartNoticeHour int   `json:"week_start_notice_hour"` // 生日周开始通知小时
+	WeekEndNoticeId     int32 `json:"week_end_notice_id"`     // 生日周结束通知id
+	WeekEndNoticeHour   int   `json:"week_end_notice_hour"`   // 生日周结束通知小时
+	WeekRoomNoticeId    int32 `json:"week_room_notice_id"`    // 生日周首次进房通知id
 }
 
 // 将结构体定义的字符串解析为 JSON 默认值
