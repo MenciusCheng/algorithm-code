@@ -34,3 +34,9 @@ func TestPlayerBirthdayChangeUnix(t *testing.T) {
 		})
 	}
 }
+
+func TestGetDayDotAndConvertGroupStrToGroup(t *testing.T) {
+	dayDot := GetDayDot()
+	group := ConvertGroupStrToGroup("2025-06-17")
+	t.Logf("dayDot=%v, group=%v", dayDot, group)
+}
