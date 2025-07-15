@@ -3,11 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
 func main() {
-	splitArr()
+	testSortIdsIfChangeOrigin()
 }
 
 func subSlice() {
@@ -57,4 +58,21 @@ func splitArrN() {
 	arr = strings.SplitN("a,b,c,d", ",", 5)
 	bs, _ = json.Marshal(arr)
 	fmt.Printf("arr: %s\n", string(bs))
+}
+
+// 测试对数组排序是否会影响原数组
+func testSortIdsIfChangeOrigin() {
+	playerIds := []int64{5, 2, 4, 3, 1}
+	fmt.Printf("input playerIds: %+v\n", playerIds)
+	sortedIds := sortPlayerIds(playerIds)
+	fmt.Println("sorted:")
+	fmt.Printf("playerIds: %+v\n", playerIds)
+	fmt.Printf("sortedIds: %+v", sortedIds)
+}
+
+func sortPlayerIds(playerIds []int64) []int64 {
+	sort.Slice(playerIds, func(i, j int) bool {
+		return playerIds[i] < playerIds[j]
+	})
+	return playerIds
 }
