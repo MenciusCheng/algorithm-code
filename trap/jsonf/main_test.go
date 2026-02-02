@@ -122,7 +122,7 @@ func TestMJson(t *testing.T) {
 }
 
 func TestStructToJSONWithDefaults(t *testing.T) {
-	out, _ := StructToJSONWithDefaults(JsonBirthdayWeekConf{})
+	out, _ := StructToJSONWithDefaults(JsonKingSong2025Conf{})
 	fmt.Println(out)
 }
 
@@ -130,4 +130,51 @@ func TestStructDefinitionToJSON(t *testing.T) {
 	arg := "type JsonYearFireworkCondition struct {\n\tGiftIds []int32 `json:\"gift_ids\"` // 送礼礼物ID列表\n\tMinGold int64   `json:\"min_gold\"` // 燃放烟花金币\n}\n\ntype JsonYearFireworkRank struct {\n\tRankConfId   int32 `json:\"rank_conf_id\"`   // 榜单配置ID\n\tRankPoint    int64 `json:\"rank_point\"`     // 榜单心动值\n\tRankNoticeId int64 `json:\"rank_notice_id\"` // 榜单心动值通知关联id\n}\n\ntype JsonYearFireworkTaskData struct {\n\tTaskId     int64  `json:\"task_id\"`     // 任务ID\n\tTaskName   string `json:\"task_name\"`   // 任务名称\n\tLastNumber int64  `json:\"last_number\"` // 烟花编号尾数\n\tRateNumber int64  `json:\"rate_number\"` // 烟花编号倍数\n\tRelateId   int64  `json:\"relate_id\"`   // 奖励关联id\n\tNoticeId   int64  `json:\"notice_id\"`   // 通知关联id\n}\n\ntype JsonYearFireworkConf struct {\n\tCondition *JsonYearFireworkCondition  `json:\"condition\"` // 玩法完成条件\n\tRank      *JsonYearFireworkRank       `json:\"rank\"`      // 玩法榜单配置\n\tTasks     []*JsonYearFireworkTaskData `json:\"tasks\"`     // 烟花奖励配置\n}"
 	got, _ := StructDefinitionToJSON(arg)
 	fmt.Println(got)
+}
+
+func TestCC(t *testing.T) {
+	factory := NewVirtualRoomFactory()
+	if factory == nil {
+		t.Logf("factory is nil")
+		return
+	}
+	factory.Do()
+}
+
+type CC interface {
+	Do()
+}
+
+func NewVirtualRoomFactory() CC {
+	v := NewEmtpyCC()
+	// 修复版
+	//if v == nil {
+	//	return nil
+	//}
+	return CC(v)
+}
+
+type ICC struct {
+	PlayerId int64
+}
+
+func (i *ICC) Do() {
+
+	i.PlayerId = 1
+	fmt.Println("icc do")
+}
+
+func NewEmtpyCC() *ICC {
+	return nil
+}
+
+type MapNil struct {
+	Conf map[string]interface{}
+}
+
+func TestMapNil(t *testing.T) {
+	m := MapNil{Conf: nil}
+	if v, ok := m.Conf["a"]; ok {
+		t.Logf("%+v", v)
+	}
 }

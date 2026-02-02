@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/Eyevinn/mp4ff v0.45.1
+	github.com/ghodss/yaml v1.0.0
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/google/uuid v1.4.0
@@ -24,4 +25,5 @@ require (
 	github.com/onsi/gomega v1.30.0 // indirect
 	github.com/u2takey/go-utils v0.3.1 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
+	gopkg.in/yaml.v2 v2.3.0 // indirect
 )

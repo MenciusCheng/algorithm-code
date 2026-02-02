@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	jsoniter "github.com/json-iterator/go"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"reflect"
 	"strings"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 var json2 = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -346,6 +347,32 @@ type JsonBirthdayWeekConf struct {
 	WeekEndNoticeId     int32 `json:"week_end_notice_id"`     // 生日周结束通知id
 	WeekEndNoticeHour   int   `json:"week_end_notice_hour"`   // 生日周结束通知小时
 	WeekRoomNoticeId    int32 `json:"week_room_notice_id"`    // 生日周首次进房通知id
+}
+
+type JsonKingSong2025Conf struct {
+	ApplyRelActId      int32              `json:"apply_rel_act_id"`      // 报名子活动ID
+	ApplyCarrierId     int32              `json:"apply_carrier_id"`      // 报名表单载体ID
+	ShareAwardRelateId int32              `json:"share_award_relate_id"` // 分享-奖励关联id
+	AuditionRelActId   int32              `json:"audition_rel_act_id"`   // 海选赛子活动ID
+	AuditionCarrierId  int32              `json:"audition_carrier_id"`   // 海选赛表单载体ID
+	PopRankId          int32              `json:"pop_rank_id"`           // 海选赛人气总榜单ID
+	MaleRankId         int32              `json:"male_rank_id"`          // 海选赛男歌手总榜单ID
+	FemaleRankId       int32              `json:"female_rank_id"`        // 海选赛女歌手总榜单ID
+	ClanRelActId       int32              `json:"clan_rel_act_id"`       // 公会子活动ID
+	ClanRankId         int32              `json:"clan_rank_id"`          // 公会榜单ID
+	NewHallClanIds     []int64            `json:"new_hall_clans"`        // 新厅公会列表
+	InvitedBeforeDays  int32              `json:"invited_before_days"`   // 特邀成员登录判断往前天数，如：90
+	InvitedStartDate   string             `json:"invited_start_date"`    // 特邀成员注册起始时间，如：2025-10-09 00:00:00
+	InvitedEndDate     string             `json:"invited_end_date"`      // 特邀成员注册结束时间，如：2025-10-09 00:00:00
+	BreakRelActId      int32              `json:"break_rel_act_id"`      // 突围赛子活动ID
+	SubscribeRoomId    int64              `json:"subscribe_room_id"`     // 预约配置房间ID
+	SubscribeConfigs   []*SubscribeConfig `json:"subscribe_configs"`     // 预约配置列表
+}
+
+// 预约阶段配置
+type SubscribeConfig struct {
+	Stage   int32  `json:"stage"`    // 预约阶段
+	EndTime string `json:"end_time"` // 预约结束时间，如：2025-10-09 00:00:00
 }
 
 // 将结构体定义的字符串解析为 JSON 默认值
